@@ -4,6 +4,17 @@ import { mkdirSync, chmodSync } from "node:fs";
 import { dirname } from "node:path";
 import { configuration, digest, fail, checkpointSchema } from "./model.ts";
 import type { Checkpoint, Agent } from "./model.ts";
+type RelatedSession = {
+  threadId: string;
+  attempts: {
+    attemptId: string;
+    phase: string;
+    agentId: string;
+    configurationRevision: number;
+    state: Checkpoint["state"];
+    turnIds: string[];
+  }[];
+};
 type Row = Record<string, string | number | null>;
 export class Store {
   private db: DatabaseSync;
@@ -28,7 +39,11 @@ export class Store {
       CREATE TABLE IF NOT EXISTS agents(revision INTEGER NOT NULL REFERENCES policy(revision),id TEXT NOT NULL,position INTEGER NOT NULL CHECK(position>=0),name TEXT NOT NULL,description TEXT NOT NULL,instructions TEXT NOT NULL,model TEXT NOT NULL,effort TEXT NOT NULL CHECK(effort IN('low','medium','high','xhigh','max','ultra')),environment TEXT,PRIMARY KEY(revision,id),UNIQUE(revision,position)) STRICT;
       CREATE TABLE IF NOT EXISTS release_windows(revision INTEGER NOT NULL REFERENCES policy(revision),position INTEGER NOT NULL CHECK(position>=0),start TEXT NOT NULL,end TEXT NOT NULL CHECK(end>start),PRIMARY KEY(revision,position)) STRICT;
       CREATE TABLE IF NOT EXISTS release_days(revision INTEGER NOT NULL,window_position INTEGER NOT NULL,position INTEGER NOT NULL CHECK(position>=0),weekday INTEGER NOT NULL CHECK(weekday BETWEEN 1 AND 7),PRIMARY KEY(revision,window_position,position),UNIQUE(revision,window_position,weekday),FOREIGN KEY(revision,window_position) REFERENCES release_windows(revision,position)) STRICT;
-      CREATE TABLE IF NOT EXISTS checkpoints(issue TEXT NOT NULL,version INTEGER NOT NULL CHECK(version>0),attempt_id TEXT NOT NULL,agent_id TEXT NOT NULL,configuration_revision INTEGER NOT NULL,owner_ref TEXT NOT NULL,scope TEXT NOT NULL,next_check TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN('intended','submitted','uncertain','rejected','verified','blocked','failed')),thread_id TEXT,turn_id TEXT CHECK(turn_id IS NULL OR thread_id IS NOT NULL),updated_at TEXT NOT NULL,PRIMARY KEY(issue,version),FOREIGN KEY(configuration_revision,agent_id) REFERENCES agents(revision,id)) STRICT;
+      CREATE TABLE IF NOT EXISTS sessions(thread_id TEXT PRIMARY KEY,first_seen_at TEXT NOT NULL) STRICT;
+      CREATE TABLE IF NOT EXISTS session_turns(thread_id TEXT NOT NULL REFERENCES sessions(thread_id),turn_id TEXT NOT NULL,first_seen_at TEXT NOT NULL,PRIMARY KEY(thread_id,turn_id)) STRICT;
+      CREATE TABLE IF NOT EXISTS issue_sessions(issue TEXT NOT NULL,attempt_id TEXT NOT NULL,thread_id TEXT NOT NULL REFERENCES sessions(thread_id),phase TEXT NOT NULL,agent_id TEXT NOT NULL,configuration_revision INTEGER NOT NULL,first_version INTEGER NOT NULL,PRIMARY KEY(issue,attempt_id,thread_id),FOREIGN KEY(configuration_revision,agent_id) REFERENCES agents(revision,id)) STRICT;
+      CREATE TABLE IF NOT EXISTS issue_session_turns(issue TEXT NOT NULL,attempt_id TEXT NOT NULL,thread_id TEXT NOT NULL,turn_id TEXT NOT NULL,first_version INTEGER NOT NULL,PRIMARY KEY(issue,attempt_id,thread_id,turn_id),FOREIGN KEY(issue,attempt_id,thread_id) REFERENCES issue_sessions(issue,attempt_id,thread_id),FOREIGN KEY(thread_id,turn_id) REFERENCES session_turns(thread_id,turn_id)) STRICT;
+      CREATE TABLE IF NOT EXISTS checkpoints(issue TEXT NOT NULL,version INTEGER NOT NULL CHECK(version>0),attempt_id TEXT NOT NULL,phase TEXT NOT NULL,agent_id TEXT NOT NULL,configuration_revision INTEGER NOT NULL,owner_ref TEXT NOT NULL,scope TEXT NOT NULL,next_check TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN('intended','submitted','uncertain','rejected','verified','blocked','failed')),thread_id TEXT REFERENCES sessions(thread_id),turn_id TEXT CHECK(turn_id IS NULL OR thread_id IS NOT NULL),updated_at TEXT NOT NULL,PRIMARY KEY(issue,version),FOREIGN KEY(configuration_revision,agent_id) REFERENCES agents(revision,id)) STRICT;
       CREATE TABLE IF NOT EXISTS checkpoint_evidence(issue TEXT NOT NULL,version INTEGER NOT NULL,position INTEGER NOT NULL CHECK(position>=0),reference TEXT NOT NULL,PRIMARY KEY(issue,version,position),FOREIGN KEY(issue,version) REFERENCES checkpoints(issue,version)) STRICT;
       CREATE TABLE IF NOT EXISTS requests(actor TEXT NOT NULL,id TEXT NOT NULL,digest TEXT NOT NULL,operation TEXT NOT NULL CHECK(operation IN('configuration','checkpoint')),result_revision INTEGER NOT NULL,issue TEXT,PRIMARY KEY(actor,id)) STRICT;
       CREATE TABLE IF NOT EXISTS audit(seq INTEGER PRIMARY KEY,actor TEXT NOT NULL,operation TEXT NOT NULL,revision INTEGER NOT NULL,at TEXT NOT NULL) STRICT;`);
@@ -311,11 +326,44 @@ export class Store {
       },
     );
   }
+  private relatedSessions(issue: string, version: number): RelatedSession[] {
+    const links = this.db
+      .prepare(
+        "SELECT * FROM issue_sessions WHERE issue=? AND first_version<=? ORDER BY first_version,thread_id,attempt_id",
+      )
+      .all(issue, version);
+    const sessions = new Map<string, RelatedSession>();
+    for (const link of links) {
+      const threadId = String(link.thread_id);
+      const session = sessions.get(threadId) ?? { threadId, attempts: [] };
+      const latest = this.db
+        .prepare(
+          "SELECT state FROM checkpoints WHERE issue=? AND attempt_id=? AND version<=? ORDER BY version DESC LIMIT 1",
+        )
+        .get(issue, link.attempt_id, version)!;
+      session.attempts.push({
+        attemptId: String(link.attempt_id),
+        phase: String(link.phase),
+        agentId: String(link.agent_id),
+        configurationRevision: Number(link.configuration_revision),
+        state: latest.state as Checkpoint["state"],
+        turnIds: this.db
+          .prepare(
+            "SELECT turn_id FROM issue_session_turns WHERE issue=? AND attempt_id=? AND thread_id=? AND first_version<=? ORDER BY first_version,turn_id",
+          )
+          .all(issue, link.attempt_id, threadId, version)
+          .map((t) => String(t.turn_id)),
+      });
+      sessions.set(threadId, session);
+    }
+    return [...sessions.values()];
+  }
   checkpoint(
     issue: string,
     version?: number,
   ): {
     version: number;
+    sessions: RelatedSession[];
     checkpoint:
       | (Checkpoint & {
           agent: Agent;
@@ -336,14 +384,16 @@ export class Store {
             .prepare("SELECT * FROM checkpoints WHERE issue=? AND version=?")
             .get(issue, version)
     ) as Row | undefined;
-    if (!p) return { version: 0, checkpoint: null };
+    if (!p) return { version: 0, checkpoint: null, sessions: [] };
     const policy = this.policy(Number(p.configuration_revision));
     const agent = policy.c.agents.find((a) => a.id === p.agent_id);
     if (!agent) fail("INTEGRITY_FAILURE");
     return {
       version: Number(p.version),
+      sessions: this.relatedSessions(issue, Number(p.version)),
       checkpoint: {
         attemptId: String(p.attempt_id),
+        phase: String(p.phase),
         agentId: String(p.agent_id),
         ownerRef: String(p.owner_ref),
         scope: String(p.scope),
@@ -407,7 +457,8 @@ export class Store {
           fail("INTENDED_CHECKPOINT_REQUIRED");
         if (
           same &&
-          (previous!.agentId !== c.agentId ||
+          (previous!.phase !== c.phase ||
+            previous!.agentId !== c.agentId ||
             previous!.scope !== c.scope ||
             previous!.ownerRef !== c.ownerRef)
         )
@@ -421,10 +472,43 @@ export class Store {
         if (same && previous!.turnId && !c.turnId)
           fail("TURN_EVIDENCE_REQUIRED");
         const version = expectedVersion + 1;
+        const configurationRevision = same
+          ? previous!.configurationRevision
+          : revision;
+        const observedAt = new Date().toISOString();
+        if (c.threadId) {
+          this.db
+            .prepare("INSERT OR IGNORE INTO sessions VALUES(?,?)")
+            .run(c.threadId, observedAt);
+          this.db
+            .prepare(
+              "INSERT OR IGNORE INTO issue_sessions VALUES(?,?,?,?,?,?,?)",
+            )
+            .run(
+              issue,
+              c.attemptId,
+              c.threadId,
+              c.phase,
+              c.agentId,
+              configurationRevision,
+              version,
+            );
+          if (c.turnId) {
+            this.db
+              .prepare("INSERT OR IGNORE INTO session_turns VALUES(?,?,?)")
+              .run(c.threadId, c.turnId, observedAt);
+            this.db
+              .prepare(
+                "INSERT OR IGNORE INTO issue_session_turns VALUES(?,?,?,?,?)",
+              )
+              .run(issue, c.attemptId, c.threadId, c.turnId, version);
+          }
+        }
         this.insert("checkpoints", [
           issue,
           version,
           c.attemptId,
+          c.phase,
           c.agentId,
           same ? previous!.configurationRevision : revision,
           c.ownerRef,

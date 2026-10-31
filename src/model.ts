@@ -125,6 +125,10 @@ export const identifier = z
 export const checkpointSchema = z
   .object({
     attemptId: identifier,
+    phase: z
+      .string()
+      .max(64)
+      .regex(/^[a-z][a-z0-9-]*$/),
     agentId: identifier,
     ownerRef: z.string().trim().min(1).max(160),
     scope: z.string().trim().min(1).max(2000),

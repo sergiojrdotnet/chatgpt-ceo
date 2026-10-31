@@ -154,6 +154,7 @@ test("fresh SDK consumers setup, discover nine tools, read subjects consistently
     );
     const checkpoint = {
       attemptId: "attempt-1",
+      phase: "implementation",
       agentId: "synthetic-builder-a",
       ownerRef: "owner",
       scope: "synthetic only",

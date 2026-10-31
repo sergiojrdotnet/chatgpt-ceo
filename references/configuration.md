@@ -26,10 +26,16 @@ lost access stops new dependent actions at the next boundary; reconcile existing
 work safely without automatic reactivation. Current user/platform permissions and
 issue scope prevail; repository guidance controls technical execution.
 
-Use `get_checkpoint(issueId)` before dispatch/retry and after interruption.
+Use `get_checkpoint(issueId)` before dispatch/retry and after interruption. It
+returns `{version, checkpoint, sessions}` for that issue only; absence is
+`{version:0, checkpoint:null, sessions:[]}`. Each related session contains one
+`threadId` and `attempts` with `attemptId`, `phase`, `agentId`,
+`configurationRevision`, issue-specific `state` and retained `turnIds`.
+Linear discovers work; there is no global session/checkpoint listing API.
 `save_checkpoint` requires separate checkpoint-write access, `expectedVersion`,
 current `expectedRevision` and a stable `requestId`. First save an `intended`
-attempt with scope, agent ID, owner and next check; the server snapshots its whole
+attempt with scope, phase (for example `implementation` or `release`), agent ID,
+owner and next check; the server snapshots its whole
 agent template and configuration revision/digest. Verify readback before sending.
 After sending, save actual returned `threadId` and, when returned, `turnId` in
 separate fields alongside observed state/evidence; verify readback. `threadId` is
@@ -52,3 +58,12 @@ full issue copies. References are sufficient for evidence. Read access covers th
 one company's policy and checkpoints; this is not a multi-tenant service.
 
 Setup and configuration changes use [setup](../skills/setup/SKILL.md).
+
+An issue can retain multiple phase sessions, and one session can serve multiple
+issues. `save_checkpoint` records one issue/attempt observation and accumulates
+relational session links and turn evidence; it never replaces the whole related
+session set. Reuse the actual shared release thread ID across its issue links.
+A verified attempt covers only its recorded issue/scope/phase: it neither verifies
+other linked issues nor establishes full issue acceptance. Check each issue
+against its own acceptance in Linear. Historical idempotent responses return
+related links as of their saved checkpoint version; reread for current evidence.

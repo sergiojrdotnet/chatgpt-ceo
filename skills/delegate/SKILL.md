@@ -34,7 +34,7 @@ Use the same revision for all configuration reads; follow the linked contract.
    Do not infer effective settings, cost or quality from requested configuration.
 4. BEFORE dispatch, use `get_checkpoint` and `save_checkpoint` to persist and
    verify recoverable protected attempt evidence:
-   intended-attempt identity, issue ID, selected agent ID and full template,
+   intended-attempt identity, phase, issue ID, selected agent ID and full template,
    approved configuration revision/digest checkpoint,
    requested model/effort, verified destination, owner and next check. If recording
    or readback fails or is uncertain, stop dispatch and reconcile that checkpoint.
@@ -58,8 +58,10 @@ Use the same revision for all configuration reads; follow the linked contract.
    metadata (unknown when absent); verify with `get_checkpoint`. Never invent IDs.
    If creation succeeds but saving fails, retain those returned IDs in protected
    task evidence and inspect that existing thread before retrying any dispatch.
-   Pass only necessary
-   private context. A known rejection is not submission; a timeout, missing response
+   When an authorized shared release already uses one session for several issues,
+   associate its actual thread ID with each issue/phase attempt instead of creating
+   duplicate release sessions. Preserve earlier implementation links.
+   Pass only necessary private context. A known rejection is not submission; a timeout, missing response
    or failed post-send record leaves dispatch uncertain until reconciled. Inspect
    actual sessions/results before retrying; an empty session list alone is not
    definitive failure. If checkpoint recovery is unavailable, stop dependent retry

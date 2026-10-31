@@ -154,7 +154,7 @@ export function mcp(store: Store) {
         "get_checkpoint",
         {
           description:
-            "Recover private issue checkpoint. No record or absent session does not prove that dispatch failed.",
+            "Recover the latest private issue checkpoint and its related phase sessions. No record or absent session does not prove that dispatch failed.",
           inputSchema: z.object({ issueId: identifier }).strict(),
           annotations: read,
         },

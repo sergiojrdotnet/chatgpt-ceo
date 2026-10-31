@@ -35,7 +35,7 @@ that guidance requires it. Reading configuration grants no business permission.
 | `get_configuration` | None | Admin read/setup status |
 | `validate_configuration` | `configuration` | Admin validation/review digest |
 | `update_configuration` | `configuration`, `expectedRevision`, `reviewDigest`, `requestId` | Admin write |
-| `get_checkpoint` | `issueId` | Read private checkpoint |
+| `get_checkpoint` | `issueId` | Read latest issue checkpoint and related sessions |
 | `save_checkpoint` | `issueId`, `expectedVersion`, `expectedRevision`, `checkpoint`, `requestId` | Checkpoint write |
 
 Follow the [configuration contract](references/configuration.md) for consistent
