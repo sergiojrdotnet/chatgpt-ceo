@@ -26,18 +26,6 @@
       "connectionRef": "synthetic-erp-a"
     }
   },
-  "routing": {
-    "general": {
-      "environmentConfigId": "synthetic-cloud-a",
-      "kind": "specialized"
-    }
-  },
-  "models": {
-    "analysis": {
-      "model": "synthetic-model-a",
-      "effort": "medium"
-    }
-  },
   "capacity": {
     "preferredMin": 1,
     "preferredMax": 3,
@@ -63,5 +51,17 @@
       }
     ],
     "observationMinimumMinutes": 17
-  }
+  },
+  "agents": [
+    {
+      "id": "synthetic-builder-a",
+      "name": "Synthetic builder A",
+      "description": "Choose for bounded code changes requiring a checkout and local tests.",
+      "model": "synthetic-model-a",
+      "effort": "medium",
+      "environment": {
+        "environmentConfigId": "synthetic-cloud-a"
+      }
+    }
+  ]
 }

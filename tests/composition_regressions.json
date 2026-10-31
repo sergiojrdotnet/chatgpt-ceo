@@ -1,30 +1,76 @@
 [
   {
     "name": "draft-outcome",
-    "skills": ["reconcile-execution", "operate-administration"],
+    "skills": [
+      "reconcile-execution",
+      "operate-administration"
+    ],
     "steps": [
       "Synthetic issue accepts only a saved administrative draft. Complete company-scoped saved-state readback matches every criterion; no review, posting, payment or observation remains.",
       "A different code issue has a draft PR with unfinished implementation. Compare its state with the accepted administrative draft."
     ],
-    "expected": ["Administrative draft can pass In Validation to Done with verified transitions", "Draft PR remains In Progress; no invented publication or payment"]
+    "expected": [
+      "Administrative draft can pass In Validation to Done with verified transitions",
+      "Draft PR remains In Progress; no invented publication or payment"
+    ]
   },
   {
     "name": "release-start",
-    "skills": ["conduct-release"],
+    "skills": [
+      "conduct-release"
+    ],
     "steps": [
       "An authorized standalone release issue is Todo. Full issue/profile reads and scope checks succeed. State update times out and readback is unavailable. May substantive release proceed?",
       "Authoritative read now confirms In Progress. Contrast a merged issue already Awaiting Release and an existing observation issue In Validation."
     ],
-    "expected": ["Establish In Progress and verify readback before dependent execution; uncertain transition does not pass", "Preserve and verify evidenced delivery phase for merged/observing issues, record owner and checkpoint rather than regress phase"]
+    "expected": [
+      "Establish In Progress and verify readback before dependent execution; uncertain transition does not pass",
+      "Preserve and verify evidenced delivery phase for merged/observing issues, record owner and checkpoint rather than regress phase"
+    ]
   },
   {
     "name": "dispatch-checkpoint",
-    "skills": ["delegate", "reconcile-execution"],
+    "skills": [
+      "delegate",
+      "reconcile-execution"
+    ],
     "steps": [
       "Issue/profile/model/capability checks pass. The pre-dispatch protected attempt write cannot be read back. May dispatch start?",
       "Checkpoint is now verified. Dispatch times out; process restarts before response/session evidence is appended. Query returns an empty session list. May a new attempt start?",
       "Contrast authoritative non-submission rejection with unknown occurrence; explain what the pre-dispatch record guarantees."
     ],
-    "expected": ["No dispatch before verified recoverable intended-attempt evidence with issue/checkpoint/settings/destination/owner", "Recover same checkpoint, correlate sessions/results; timeout plus empty list remains uncertain without blind retry", "Known rejection differs from uncertain occurrence; checkpoint is not proof of submission or an atomic/exactly-once transaction"]
+    "expected": [
+      "No dispatch before verified recoverable intended-attempt evidence with issue/checkpoint/settings/destination/owner",
+      "Recover same checkpoint, correlate sessions/results; timeout plus empty list remains uncertain without blind retry",
+      "Known rejection differs from uncertain occurrence; checkpoint is not proof of submission or an atomic/exactly-once transaction"
+    ]
+  },
+  {
+    "name": "whole-agent-template",
+    "skills": [
+      "delegate"
+    ],
+    "steps": [
+      "The issue needs checkout and tests. Template amber describes code changes and configures model-X/high/environment-X. Template teal describes record preparation and configures model-Y/low/no environment. The catalog supports both complete entries. Select a template and requested settings.",
+      "The user instead requests model-Y for the same code task, but no complete configured template fits that request and required checkout. May settings be combined?"
+    ],
+    "expected": [
+      "Select amber as a whole by its description and verify required capabilities",
+      "No arbitrary recombination; resolve the configuration/explicit-choice gap before dispatch"
+    ]
+  },
+  {
+    "name": "agent-selection-ambiguity",
+    "skills": [
+      "delegate"
+    ],
+    "steps": [
+      "Two complete configured templates have equally fitting descriptions and supported capabilities. No further preference is authorized.",
+      "The issue changes and neither description fits."
+    ],
+    "expected": [
+      "Unresolved ambiguity stops dispatch; do not select by list order",
+      "No-fit is explicit, not permission to synthesize a new template"
+    ]
   }
 ]

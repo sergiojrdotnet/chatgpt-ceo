@@ -1,5 +1,6 @@
 """Pure validation and synthetic decision helpers; no transport or action dispatch."""
 from dataclasses import dataclass
+from copy import deepcopy
 from datetime import datetime
 import hashlib
 import json
@@ -56,6 +57,9 @@ def validate(value):
         Draft202012Validator(SCHEMA).validate(value)
     except (ValidationError, RecursionError):
         raise PolicyError('INVALID_SCHEMA') from None
+    ids = [agent['id'] for agent in value['agents']]
+    if len(ids) != len(set(ids)):
+        raise PolicyError('DUPLICATE_AGENT_ID')
     instant(value['effectiveAt'])
     try:
         ZoneInfo(value['timezone'])
@@ -163,11 +167,34 @@ class RouteObservation:
     cloud_route_verified: bool
 
 
-def resolve_route(policy, route, catalog=(), required_capabilities=()):
-    """Resolve only the requested private binding; no privileged fallback."""
+def resolve_agent(policy, candidate_ids=(), catalog=(), available_models=(),
+                  required_capabilities=()):
+    """Validate one whole template selected from descriptions by the caller.
+
+    Candidate IDs are the caller's assessed matches, not keyword classification.
+    No-fit/ambiguity stop selection; settings are never recombined or overridden.
+    Returns a detached copy of the selected template, without dispatching it.
+    """
     validate(policy)
-    if not isinstance(route, str) or route not in policy['routing']:
-        raise PolicyError('ROUTE_MISSING')
+    if (not isinstance(candidate_ids, (list, tuple)) or
+            any(not isinstance(i, str) or not i.strip() for i in candidate_ids) or
+            len(candidate_ids) != len(set(candidate_ids))):
+        raise PolicyError('INVALID_AGENT_SELECTION')
+    configured = {agent['id']: agent for agent in policy['agents']}
+    if any(i not in configured for i in candidate_ids):
+        raise PolicyError('AGENT_UNKNOWN')
+    if not candidate_ids:
+        raise PolicyError('AGENT_NO_FIT')
+    if len(candidate_ids) != 1:
+        raise PolicyError('AGENT_AMBIGUOUS')
+    agent = configured[candidate_ids[0]]
+    if (not isinstance(available_models, (list, tuple)) or
+            any(not isinstance(pair, (list, tuple)) or len(pair) != 2 or
+                any(not isinstance(x, str) or not x.strip() for x in pair)
+                for pair in available_models)):
+        raise PolicyError('INVALID_MODEL_CATALOG')
+    if (agent['model'], agent['effort']) not in [tuple(pair) for pair in available_models]:
+        raise PolicyError('MODEL_UNAVAILABLE')
     if (not isinstance(catalog, (list, tuple)) or
             not isinstance(required_capabilities, (list, tuple)) or
             any(not isinstance(c, str) or not c.strip() for c in required_capabilities)):
@@ -183,9 +210,11 @@ def resolve_route(policy, route, catalog=(), required_capabilities=()):
                  (not isinstance(observation.environment_config_id, str) or
                   not observation.environment_config_id.strip()))):
             raise PolicyError('INVALID_CATALOG')
-    binding = policy['routing'][route]
-    matches = [o for o in catalog if o.kind == binding['kind'] and
-               o.environment_config_id == binding.get('environmentConfigId')]
+    environment = agent.get('environment')
+    kind = 'specialized' if environment is not None else 'generalCloud'
+    environment_id = environment['environmentConfigId'] if environment is not None else None
+    matches = [o for o in catalog if o.kind == kind and
+               o.environment_config_id == environment_id]
     if not matches:
         raise PolicyError('ROUTE_UNAVAILABLE')
     if len(matches) != 1:
@@ -195,20 +224,20 @@ def resolve_route(policy, route, catalog=(), required_capabilities=()):
         raise PolicyError('CLOUD_ROUTE_UNPROVEN')
     if not set(required_capabilities).issubset(observation.capabilities):
         raise PolicyError('CAPABILITIES_MISSING')
-    return observation
+    return deepcopy(agent)
 
 
 def simulate(policy, *, authorized=False, paused=False, scoped_exception=False,
              dependency_blocked=False, required_input_missing=False, owned_wip=0,
-             genuine_blockers=0, urgent_incident=False, route=None, task_class=None,
-             available_routes=(), required_capabilities=(), available_models=(), user_model=None,
+             genuine_blockers=0, urgent_incident=False, candidate_ids=(),
+             available_routes=(), required_capabilities=(), available_models=(),
              independent_alternative=False, low_activity=False, likely_input_dependency=False,
              release_required=False, release_fits=None, restoration_exception=False,
              mode='simulation'):
     """Evaluate trusted, pre-assessed facts only; never dispatch, even with live flags.
 
     Owned WIP includes CI/review/observation waiting. Callers must establish actual
-    dependency closure, authority, route target and release fit outside this helper.
+    dependency closure, authority, description fit and release fit outside this helper.
     """
     validate(policy)
     if mode != 'simulation':
@@ -235,17 +264,11 @@ def simulate(policy, *, authorized=False, paused=False, scoped_exception=False,
     if owned_wip - genuine_blockers >= limit:
         return 'defer', 'CAPACITY_FULL'
     try:
-        resolve_route(policy, route, available_routes, required_capabilities)
+        resolve_agent(policy, candidate_ids, available_routes, available_models,
+                      required_capabilities)
     except PolicyError as error:
-        return 'stop', str(error)
-    choice = user_model if user_model is not None else policy['models'].get(task_class)
-    if not choice:
-        return 'needsDecision', 'MODEL_MISSING'
-    if (not isinstance(choice, dict) or set(choice) != {'model', 'effort'} or
-            not isinstance(choice['model'], str) or not choice['model'].strip() or
-            choice['effort'] not in ('low', 'medium', 'high', 'xhigh', 'max', 'ultra') or
-            (choice['model'], choice['effort']) not in available_models):
-        return 'stop', 'MODEL_UNAVAILABLE'
+        reason = str(error)
+        return ('needsDecision' if reason in ('AGENT_NO_FIT', 'AGENT_AMBIGUOUS') else 'stop'), reason
     if release_required and release_fits is not True and not restoration_exception:
         return 'defer', 'RELEASE_ASSESSMENT_REQUIRED'
     prefer_low_activity = policy['selection']['lowActivityPreference'] and low_activity

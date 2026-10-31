@@ -122,254 +122,6 @@
       ],
       "additionalProperties": false
     },
-    "routing": {
-      "type": "object",
-      "properties": {
-        "development": {
-          "oneOf": [
-            {
-              "type": "object",
-              "properties": {
-                "kind": {
-                  "const": "specialized"
-                },
-                "environmentConfigId": {
-                  "type": "string",
-                  "minLength": 1,
-                  "pattern": "\\S"
-                }
-              },
-              "required": [
-                "kind",
-                "environmentConfigId"
-              ],
-              "additionalProperties": false
-            },
-            {
-              "type": "object",
-              "properties": {
-                "kind": {
-                  "const": "generalCloud"
-                }
-              },
-              "required": [
-                "kind"
-              ],
-              "additionalProperties": false
-            }
-          ]
-        },
-        "operations": {
-          "oneOf": [
-            {
-              "type": "object",
-              "properties": {
-                "kind": {
-                  "const": "specialized"
-                },
-                "environmentConfigId": {
-                  "type": "string",
-                  "minLength": 1,
-                  "pattern": "\\S"
-                }
-              },
-              "required": [
-                "kind",
-                "environmentConfigId"
-              ],
-              "additionalProperties": false
-            },
-            {
-              "type": "object",
-              "properties": {
-                "kind": {
-                  "const": "generalCloud"
-                }
-              },
-              "required": [
-                "kind"
-              ],
-              "additionalProperties": false
-            }
-          ]
-        },
-        "pilot": {
-          "oneOf": [
-            {
-              "type": "object",
-              "properties": {
-                "kind": {
-                  "const": "specialized"
-                },
-                "environmentConfigId": {
-                  "type": "string",
-                  "minLength": 1,
-                  "pattern": "\\S"
-                }
-              },
-              "required": [
-                "kind",
-                "environmentConfigId"
-              ],
-              "additionalProperties": false
-            },
-            {
-              "type": "object",
-              "properties": {
-                "kind": {
-                  "const": "generalCloud"
-                }
-              },
-              "required": [
-                "kind"
-              ],
-              "additionalProperties": false
-            }
-          ]
-        },
-        "general": {
-          "oneOf": [
-            {
-              "type": "object",
-              "properties": {
-                "kind": {
-                  "const": "specialized"
-                },
-                "environmentConfigId": {
-                  "type": "string",
-                  "minLength": 1,
-                  "pattern": "\\S"
-                }
-              },
-              "required": [
-                "kind",
-                "environmentConfigId"
-              ],
-              "additionalProperties": false
-            },
-            {
-              "type": "object",
-              "properties": {
-                "kind": {
-                  "const": "generalCloud"
-                }
-              },
-              "required": [
-                "kind"
-              ],
-              "additionalProperties": false
-            }
-          ]
-        }
-      },
-      "additionalProperties": false
-    },
-    "models": {
-      "type": "object",
-      "properties": {
-        "development": {
-          "type": "object",
-          "properties": {
-            "model": {
-              "type": "string",
-              "minLength": 1,
-              "pattern": "\\S"
-            },
-            "effort": {
-              "enum": [
-                "low",
-                "medium",
-                "high",
-                "xhigh",
-                "max",
-                "ultra"
-              ]
-            }
-          },
-          "required": [
-            "model",
-            "effort"
-          ],
-          "additionalProperties": false
-        },
-        "boundedAdministrative": {
-          "type": "object",
-          "properties": {
-            "model": {
-              "type": "string",
-              "minLength": 1,
-              "pattern": "\\S"
-            },
-            "effort": {
-              "enum": [
-                "low",
-                "medium",
-                "high",
-                "xhigh",
-                "max",
-                "ultra"
-              ]
-            }
-          },
-          "required": [
-            "model",
-            "effort"
-          ],
-          "additionalProperties": false
-        },
-        "analysis": {
-          "type": "object",
-          "properties": {
-            "model": {
-              "type": "string",
-              "minLength": 1,
-              "pattern": "\\S"
-            },
-            "effort": {
-              "enum": [
-                "low",
-                "medium",
-                "high",
-                "xhigh",
-                "max",
-                "ultra"
-              ]
-            }
-          },
-          "required": [
-            "model",
-            "effort"
-          ],
-          "additionalProperties": false
-        },
-        "visual": {
-          "type": "object",
-          "properties": {
-            "model": {
-              "type": "string",
-              "minLength": 1,
-              "pattern": "\\S"
-            },
-            "effort": {
-              "enum": [
-                "low",
-                "medium",
-                "high",
-                "xhigh",
-                "max",
-                "ultra"
-              ]
-            }
-          },
-          "required": [
-            "model",
-            "effort"
-          ],
-          "additionalProperties": false
-        }
-      },
-      "additionalProperties": false
-    },
     "capacity": {
       "type": "object",
       "properties": {
@@ -483,6 +235,72 @@
         "observationMinimumMinutes"
       ],
       "additionalProperties": false
+    },
+    "agents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$(?![\\s\\S])",
+            "maxLength": 64,
+            "description": "Stable private identifier; unique across this list."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "maxLength": 80
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "maxLength": 500,
+            "description": "Brief human-readable guidance describing when Delegate should choose this template."
+          },
+          "model": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "effort": {
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max",
+              "ultra"
+            ]
+          },
+          "environment": {
+            "type": "object",
+            "properties": {
+              "environmentConfigId": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            },
+            "required": [
+              "environmentConfigId"
+            ],
+            "additionalProperties": false,
+            "description": "Optional specialized environment binding. Absence requires verified explicit general-cloud execution, never an implicit desktop fallback."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "model",
+          "effort"
+        ],
+        "additionalProperties": false
+      },
+      "description": "Session execution templates selected as complete entries by Delegate using their descriptions."
     }
   },
   "required": [
@@ -497,11 +315,10 @@
     "agreement",
     "timezone",
     "bindings",
-    "routing",
-    "models",
     "capacity",
     "selection",
-    "release"
+    "release",
+    "agents"
   ],
   "additionalProperties": false
 }

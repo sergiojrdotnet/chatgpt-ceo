@@ -26,29 +26,6 @@
       "connectionRef": "synthetic-erp-b"
     }
   },
-  "routing": {
-    "development": {
-      "kind": "specialized",
-      "environmentConfigId": "synthetic-development-b"
-    },
-    "operations": {
-      "kind": "specialized",
-      "environmentConfigId": "synthetic-operations-b"
-    },
-    "pilot": {
-      "kind": "specialized",
-      "environmentConfigId": "synthetic-pilot-b"
-    },
-    "general": {
-      "kind": "generalCloud"
-    }
-  },
-  "models": {
-    "analysis": {
-      "model": "synthetic-model-b",
-      "effort": "medium"
-    }
-  },
   "capacity": {
     "preferredMin": 1,
     "preferredMax": 3,
@@ -74,5 +51,34 @@
       }
     ],
     "observationMinimumMinutes": 17
-  }
+  },
+  "agents": [
+    {
+      "id": "synthetic-builder-b",
+      "name": "Synthetic builder B",
+      "description": "Choose for bounded code changes requiring a checkout and local tests.",
+      "model": "synthetic-model-b",
+      "effort": "medium",
+      "environment": {
+        "environmentConfigId": "synthetic-cloud-b"
+      }
+    },
+    {
+      "id": "synthetic-records",
+      "name": "Synthetic records assistant",
+      "description": "Choose for bounded record preparation or connected-tool research without a code checkout.",
+      "model": "synthetic-record-model",
+      "effort": "low"
+    },
+    {
+      "id": "synthetic-observer",
+      "name": "Synthetic observer",
+      "description": "Choose for authorized release observation needing operational telemetry access.",
+      "model": "synthetic-observation-model",
+      "effort": "high",
+      "environment": {
+        "environmentConfigId": "synthetic-observation-cloud"
+      }
+    }
+  ]
 }

@@ -31,9 +31,15 @@ bindings outside this repository. Credentials stay in protected facilities.
 [Example A](examples/inactive-a.json) and [example B](examples/inactive-b.json) are
 wholly synthetic, inactive, fixture-only and execution-disabled.
 
-Routing explicitly supports a general-cloud business route without a specialized
-environment binding. It does not prove the host supports that route. An omitted
-selector currently defaults to desktop; unsupported dispatch blocks without fallback.
+Private `agents` entries bundle a stable ID, name, selection description, model,
+effort and optional environment. Delegate selects one complete session template by
+its description; no suitable entry or unresolved ambiguity stops dispatch. Settings
+are never mixed across entries. These templates do not create persistent agents.
+
+An entry without an environment needs no specialized binding, but still requires
+an explicitly supported general-cloud launch path. An omitted tool selector
+currently defaults to desktop. Fresh availability/access/capability checks apply
+to the whole selected template, without silent substitution.
 
 Technical code/build/test/domain/architecture/runbook/safety facts remain in the
 product repository. Existing product procedures must remain until the replacement
@@ -55,7 +61,7 @@ git diff --check
 The archive includes runtime requirements; source tests and packaging tooling stay
 in the repository. The allowlist excludes adjacent files, tests and Git history.
 The [helper](scripts/policy.py) strictly validates profiles, checks trusted read
-observations/checkpoints, resolves simulated catalog evidence and returns synthetic
+observations/checkpoints, validates a selected whole agent template against simulated catalog evidence and returns synthetic
 decisions. It has no transport, dispatcher, persistent state or live-operation API.
 Profile flags and mocked observations never establish authority or host ACLs.
 

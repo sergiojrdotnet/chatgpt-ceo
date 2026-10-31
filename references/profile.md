@@ -49,26 +49,31 @@ services, architecture/major UX decisions, production tests or resumed paused wo
 Fixture-only or execution-disabled profiles permit isolated simulation/analysis
 only. The helper rejects ALL live dispatch, including permissive profiles.
 
-The private `routing` map is the purpose-to-environment configuration used by the
-skills: `development` for code work, `operations` for operational/release work,
-`pilot` for an explicitly targeted pilot, and `general` for connected-tool work.
-Keep one intended binding per purpose; do not create a second environment registry.
-Omit a purpose that is not offered; dependent dispatch then stops with a missing
-route rather than selecting another environment. Names/IDs come from private setup.
-Capabilities and current access are verified from the fresh catalog, not inferred
-from these purpose labels or a configured ID. Administration, Linear and research
-can use `generalCloud` without a specialized binding when that route is supported.
+The private `agents` list contains session execution templates, not persistent
+workers or an autonomous-agent framework. Each entry has a stable `id`, a human
+`name`, a short `description` of when to choose it, `model`, `effort`, and optional
+`environment: {"environmentConfigId": "<private binding>"}`. IDs must be unique;
+names, descriptions and real environment IDs stay in the private profile.
 
-Each optional route is either
-`{"kind":"specialized","environmentConfigId":"<private binding>"}` or
-`{"kind":"generalCloud"}`. No environment ID is required for general-cloud work.
-An absent route is a missing decision, not a fallback. A configured route is a
-business choice, not proof the platform can launch it. Resolve required capabilities
-against fresh trusted catalog/adapter observations using `resolve_route`.
-A general-cloud route needs explicit verified cloud support: omission of a selector
-currently defaults to desktop and must never supply that evidence. Unknown,
-ambiguous or capability-deficient routes stop affected dispatch. Do not borrow an
-operations/pilot binding for unrelated work. Environment names and IDs stay private.
+Delegate reads all descriptions against the issue's needs, then chooses one whole
+entry. No suitable entry or unresolved ambiguity stops dispatch with a specific
+configuration/selection gap. Do not mix one entry's model with another entry's
+effort or environment, invent company-role enums, or maintain a second registry.
+An explicit user choice constrains which complete entry fits; if none fits, resolve
+that choice in the private configuration before dependent dispatch.
+
+No `environment` expresses work needing no specialized environment. It still
+requires a supported explicit general-cloud launch path: omitting a tool selector
+currently defaults to desktop and is not cloud evidence. Verify the chosen entry's
+exact model/effort availability and environment/access/capabilities against fresh
+catalog observations. Configured does not mean available; mismatch, missing access
+or ambiguity stops dispatch without substituting another template or destination.
+
+`resolve_agent` takes assessed candidate IDs from the caller's description-based
+selection, verifies exactly one configured entry and its current capabilities,
+and returns a detached copy of that full entry. It does not interpret descriptions
+or infer semantic fit; that is Delegate's job. Runtime catalog observations are
+separate from the private configuration and cannot grant authority.
 
 At selection, delegation, resumption, consequential action and completion, perform
 the fresh read and scope checks above. Independent explicitly authorized generic
@@ -77,10 +82,10 @@ gaps instead of inventing values or claiming installed access.
 
 `simulate` requires an already freshly read policy and trusted pre-assessed facts;
 it is not a public authorization API. It does not traverse dependency graphs,
-authenticate inputs, calculate release windows, inspect telemetry or select models
+authenticate inputs, calculate release windows, inspect telemetry or select agents
 by inferred cost. It returns outcome/reason pairs only. Wrap a decision with the
 profileId, revision, coreVersion, read evidence, owning task, scope rationale,
-requested/effective settings and explicit route in protected task evidence.
+selected agent ID, requested/effective settings and destination in protected task evidence.
 Do not publish the evidence object if its identifiers are sensitive.
 
 Update policy only with authorized old/new revision, effective time, diff,

@@ -98,7 +98,7 @@ class Validation(unittest.TestCase):
     def test_invalid_nested_values(self):
         cases = [(['schemaVersion'], 99), (['revision'], 0), (['revision'], True),
                  (['ownerRef'], '  '), (['timezone'], 'Mars/Olympus'),
-                 (['models', 'analysis', 'effort'], 'automatic'),
+                 (['agents', 0, 'effort'], 'automatic'),
                  (['bindings', 'github', 'repositories'], ['same', 'same']),
                  (['selection', 'administrativeHours', 'start'], '7:00'),
                  (['selection', 'administrativeHours', 'end'], '24:00'),
@@ -106,7 +106,7 @@ class Validation(unittest.TestCase):
                  (['capacity', 'preferredMax'], 99),
                  (['capacity', 'urgentIncidentMax'], 99),
                  (['release', 'observationMinimumMinutes'], 0),
-                 (['routing', 'general'], {'projectId':'synthetic-desktop'})]
+                 (['agents', 0, 'environment'], {'projectId':'synthetic-desktop'})]
         for path, invalid in cases:
             value = fixture()
             target = value
@@ -151,13 +151,11 @@ class Validation(unittest.TestCase):
                                                    dict(weekdays=[1], start='12:00', end='13:00')]
         p.validate(value)
 
-    def test_partial_routes_models_validate_without_defaults(self):
+    def test_empty_agents_validate_without_defaults(self):
         value = fixture()
-        value['routing'] = {}
-        value['models'] = {}
+        value['agents'] = []
         p.validate(value)
-        self.assertEqual(value['routing'], {})
-        self.assertEqual(value['models'], {})
+        self.assertEqual(value['agents'], [])
 
 
 class Reading(unittest.TestCase):
@@ -251,7 +249,7 @@ class Reading(unittest.TestCase):
 
 class Decisions(unittest.TestCase):
     def decide(self, **kwargs):
-        defaults = dict(authorized=True, route='general', task_class='analysis', available_routes=(p.RouteObservation('specialized', 'synthetic-cloud-a', (), True),),
+        defaults = dict(authorized=True, candidate_ids=('synthetic-builder-a',), available_routes=(p.RouteObservation('specialized', 'synthetic-cloud-a', (), True),),
                         available_models=(('synthetic-model-a', 'medium'),))
         defaults.update(kwargs)
         return p.simulate(fixture(), **defaults)
@@ -275,15 +273,14 @@ class Decisions(unittest.TestCase):
                  ({'release_required':True,'release_fits':False}, 'RELEASE_ASSESSMENT_REQUIRED'),
                  ({'release_required':True,'release_fits':True}, 'SIMULATION_ONLY'),
                  ({'release_required':True,'restoration_exception':True}, 'SIMULATION_ONLY'),
-                 ({'route':'development'}, 'ROUTE_MISSING'),
-                 ({'route':'pilot'}, 'ROUTE_MISSING'),
+                 ({'candidate_ids':('missing-agent',)}, 'AGENT_UNKNOWN'),
+                 ({'candidate_ids':()}, 'AGENT_NO_FIT'),
                  ({'available_routes':()}, 'ROUTE_UNAVAILABLE'),
-                 ({'task_class':'visual'}, 'MODEL_MISSING'),
+                 ({'candidate_ids':None}, 'INVALID_AGENT_SELECTION'),
                  ({'available_models':()}, 'MODEL_UNAVAILABLE'),
-                 ({'user_model':{'model':'synthetic-model-a','effort':'ultra'}}, 'MODEL_UNAVAILABLE'),
-                 ({'user_model':{'model':'synthetic-override','effort':'high'},
-                   'available_models':(('synthetic-override','high'),)}, 'SIMULATION_ONLY'),
-                 ({'user_model':{}}, 'MODEL_MISSING'),
+                 ({'available_models':(('synthetic-model-a','ultra'),)}, 'MODEL_UNAVAILABLE'),
+                 ({'available_models':(('synthetic-model-a','medium'),)}, 'SIMULATION_ONLY'),
+                 ({'candidate_ids':('synthetic-builder-a','synthetic-builder-a')}, 'INVALID_AGENT_SELECTION'),
                  ({'mode':'live'}, 'LIVE_UNSUPPORTED'),
                  ({'owned_wip':-1}, 'INVALID_WIP'),
                  ({'owned_wip':1,'genuine_blockers':2}, 'INVALID_WIP'),
@@ -297,7 +294,7 @@ class Decisions(unittest.TestCase):
         for enabled in (True, False):
             value = fixture()
             value['selection']['lowActivityPreference'] = enabled
-            facts = dict(authorized=True, route='general', task_class='analysis',
+            facts = dict(authorized=True, candidate_ids=('synthetic-builder-a',),
                          available_routes=(p.RouteObservation('specialized', 'synthetic-cloud-a', (), True),),
                          available_models=(('synthetic-model-a', 'medium'),),
                          low_activity=True, independent_alternative=True)
@@ -308,8 +305,8 @@ class Decisions(unittest.TestCase):
                 self.assertEqual(p.simulate(value, likely_input_dependency=True, **facts)[1],
                                  'PREFER_INDEPENDENT')
 
-    def test_no_implicit_route_or_truthy_authority(self):
-        self.assertEqual(self.decide(route=None)[1], 'ROUTE_MISSING')
+    def test_no_implicit_agent_or_truthy_authority(self):
+        self.assertEqual(self.decide(candidate_ids=())[1], 'AGENT_NO_FIT')
         self.assertEqual(self.decide(authorized='false')[1], 'INVALID_CONTEXT')
 
     def test_even_permissive_profile_cannot_dispatch(self):
@@ -370,8 +367,10 @@ class OutcomeBoundaries(unittest.TestCase):
             p.read_policy(lambda _: replace(read, text=b'bytes'), approved, now=NOW, max_age_seconds=60)
 
     def test_availability_does_not_allow_unknown_effort(self):
-        self.assertEqual(Decisions().decide(user_model={'model':'synthetic-model-a','effort':'magic'},
-                         available_models=(('synthetic-model-a','magic'),))[1], 'MODEL_UNAVAILABLE')
+        value = fixture()
+        value['agents'][0]['effort'] = 'magic'
+        with self.assertRaises(p.PolicyError):
+            p.simulate(value, available_models=(('synthetic-model-a', 'magic'),))
 
 
 if __name__ == '__main__':
