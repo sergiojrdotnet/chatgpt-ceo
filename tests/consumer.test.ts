@@ -26,7 +26,7 @@ function consume(
     revision?: number,
   ) => unknown,
   approved: { revision: number; digest: string },
-  now = Date.now(),
+  clock = Date.now,
 ) {
   const outputs = [];
   for (const subject of [
@@ -41,6 +41,7 @@ function consume(
     assert.equal(e.subject, subject);
     assert.equal(e.revision, approved.revision);
     assert.equal(e.digest, approved.digest);
+    const now = clock();
     assert.ok(
       now - Date.parse(e.readAt) >= 0 && now - Date.parse(e.readAt) <= 30000,
     );
@@ -68,7 +69,7 @@ test("partial, stale, inactive, unauthorized, unavailable and revision-changing 
       subject: "context" | "agents" | "selection" | "release",
       r?: number,
     ) => s.read(subject, r);
-    assert.equal(consume(read, approved, Date.now() + 10).length, 4);
+    assert.equal(consume(read, approved, Date.now).length, 4);
     for (const bad of [
       { complete: false },
       { readAt: "2000-01-01T00:00:00Z" },
@@ -86,7 +87,7 @@ test("partial, stale, inactive, unauthorized, unavailable and revision-changing 
             ...(subject === "agents" ? bad : {}),
           }),
           approved,
-          Date.now() + 10,
+          Date.now,
         ),
       );
     assert.throws(() =>
@@ -94,7 +95,7 @@ test("partial, stale, inactive, unauthorized, unavailable and revision-changing 
         (subject, r) =>
           subject === "agents" ? { error: "UNAUTHORIZED" } : read(subject, r),
         approved,
-        Date.now() + 10,
+        Date.now,
       ),
     );
     assert.throws(() =>
@@ -104,7 +105,7 @@ test("partial, stale, inactive, unauthorized, unavailable and revision-changing 
           return read(subject, r);
         },
         approved,
-        Date.now() + 10,
+        Date.now,
       ),
     );
     assert.throws(
@@ -116,7 +117,7 @@ test("partial, stale, inactive, unauthorized, unavailable and revision-changing 
             return read(subject, r);
           },
           approved,
-          Date.now() + 10,
+          Date.now,
         ),
       /REVISION_CONFLICT/,
     );
