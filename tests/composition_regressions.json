@@ -20,7 +20,7 @@
       "conduct-release"
     ],
     "steps": [
-      "An authorized standalone release issue is Todo. Full issue/profile reads and scope checks succeed. State update times out and readback is unavailable. May substantive release proceed?",
+      "An authorized standalone release issue is Todo. Full issue/configuration reads and scope checks succeed. State update times out and readback is unavailable. May substantive release proceed?",
       "Authoritative read now confirms In Progress. Contrast a merged issue already Awaiting Release and an existing observation issue In Validation."
     ],
     "expected": [
@@ -35,7 +35,7 @@
       "reconcile-execution"
     ],
     "steps": [
-      "Issue/profile/model/capability checks pass. The pre-dispatch protected attempt write cannot be read back. May dispatch start?",
+      "Issue/configuration/model/capability checks pass. The pre-dispatch protected attempt write cannot be read back. May dispatch start?",
       "Checkpoint is now verified. Dispatch times out; process restarts before response/session evidence is appended. Query returns an empty session list. May a new attempt start?",
       "Contrast authoritative non-submission rejection with unknown occurrence; explain what the pre-dispatch record guarantees."
     ],
@@ -107,7 +107,7 @@
       "monitor-system"
     ],
     "steps": [
-      "A standalone Todo issue authorizes ten minutes of observation. Profile, scope, duration and access are valid; only this skill and its profile reference are loaded. State write times out and readback is unavailable. May source discovery or baseline start?",
+      "A standalone Todo issue authorizes ten minutes of observation. Configuration, scope, duration and access are valid; only this skill and its MCP configuration contract are loaded. State write times out and readback is unavailable. May source discovery or baseline start?",
       "Readback confirms In Progress. Contrast release observation already In Validation, pre-publication baseline Awaiting Release and consultation/synthetic dry run.",
       "The observer proposes a restart or configuration mutation while the status write is unresolved. Does the read-only exception authorize recovery?"
     ],

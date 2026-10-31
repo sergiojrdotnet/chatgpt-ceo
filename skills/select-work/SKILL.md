@@ -9,7 +9,10 @@ Owner: coordinator. Inputs: current Linear work, actual execution ownership,
 private policy and current validation/access conditions. Outcome: a short,
 actionable Todo queue and reasons for selection or deferral.
 
-1. Freshly check the [private profile contract](../../references/profile.md),
+Configuration: call `get_operation_context`, then `get_selection_policy` as needed.
+Use the same revision for all configuration reads; follow the linked contract.
+
+1. Freshly check the [configuration contract](../../references/configuration.md),
    current scope/pause and actual work evidence. Use
    [reconcile-execution](../reconcile-execution/SKILL.md) for stale session/status
    claims before counting capacity.

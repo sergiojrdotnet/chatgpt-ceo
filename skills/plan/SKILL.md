@@ -9,7 +9,10 @@ Owner: coordinator. Inputs: requested planning horizon, current Linear hierarchy
 prior-period outcomes and available business/flow evidence. Outcome: a reasoned,
 current direction and next milestones in Linear.
 
-1. Read the applicable [private profile contract](../../references/profile.md).
+Configuration: call `get_operation_context`, then `get_selection_policy` as needed.
+Use the same revision for all configuration reads; follow the linked contract.
+
+1. Read the applicable [configuration contract](../../references/configuration.md).
    Confirm scope and decisions reserved for the user. Existing authorization
    persists; planning does not authorize spending, new services or activation.
 2. Review completed and pending work, incidents, blockers and available outcome

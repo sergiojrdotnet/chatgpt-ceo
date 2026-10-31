@@ -10,11 +10,21 @@ identity and available repository or administrative outcome evidence. Outcome:
 truthful Linear state, accountable next action and a verified/blocked/failed/uncertain
 result, never a parallel work board.
 
+Configuration: call `get_operation_context`, then `get_agents`, `get_checkpoint` as needed.
+Use the same revision for all configuration reads; follow the linked contract.
+
 1. Read the complete current issue and relevant comments; refresh the
-   [private profile contract](../../references/profile.md) before dependent
+   [configuration contract](../../references/configuration.md) before dependent
    resumption, consequential action or completion. Preserve pause and authority.
-2. Compare actual session state and timestamps with claimed progress. Inspect exact
-   PR head, completed independent review, findings and CI when applicable; for
+2. Discover work in Linear, then read `get_checkpoint(issueId)` for each relevant
+   issue. Inspect its related `sessions` and phase/attempt links; use actual
+   `threadId` values to query or resume existing sessions through available runtime
+   tools. Preserve implementation and release evidence separately. A shared release
+   thread does not establish acceptance for all linked issues; verify each issue
+   independently. `turnId` identifies a specific turn, not another session. Verify current access/state; retained IDs
+   do not guarantee transcript retention or future availability. Do not create a
+   replacement merely because a read fails. Compare session timestamps with
+   claimed progress. Inspect exact PR head, completed independent review, findings and CI when applicable; for
    administration inspect bounded saved-state evidence. Read the authoritative
    result, not just a callback, tool success or executor narrative.
 3. Handle interrupted/stale sessions by establishing last evidenced effect and
@@ -25,8 +35,8 @@ result, never a parallel work board.
    delete evidence or cancel records to conceal duplication. Unknown occurrence
    remains uncertain until authoritative readback resolves it. A matching effect
    may resolve a lost response; empty/inaccessible readback does not justify retry.
-   Recover protected attempt/checkpoint evidence after restart; no exactly-once
-   or durable-lock guarantee is provided by this package.
+   Use `get_checkpoint` after restart and `save_checkpoint` for verified updates; no exactly-once
+   or durable-lock guarantee is provided by these coordination skills.
 5. Apply [state evidence](../../references/state-evidence.md). A draft PR stays In
    Progress; an administrative draft can satisfy a draft-only acceptance outcome.
    Merge is not publication; publication is not acceptance. Compare every

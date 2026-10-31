@@ -6,14 +6,17 @@ description: Assign an execution-ready Linear issue using explicit model, effort
 # Delegate
 
 Owner: coordinator. Inputs: selected issue ID, approved scope, current capacity,
-private profile and current tool/model/environment catalog. Outcome: one evidenced
+private configuration and current tool/model/environment catalog. Outcome: one evidenced
 execution assignment, or a precise dispatch gap.
+
+Configuration: call `get_operation_context`, then `get_agents`, `get_selection_policy` as needed.
+Use the same revision for all configuration reads; follow the linked contract.
 
 1. Read the issue and relevant comments. Missing scope or acceptance is an issue
    gap, not permission to invent it. Record material deltas in Linear before dispatch.
-   Refresh the [private profile contract](../../references/profile.md) and check
+   Refresh the [configuration contract](../../references/configuration.md) and check
    existing sessions/attempts to prevent duplicate dispatch.
-2. Read the private profile's entire `agents` list and use each description to
+2. Read the private configuration's entire `agents` list and use each description to
    assess fit for the issue's outcome, constraints and required capabilities.
    Choose one configured agent by stable ID and use its WHOLE template: model,
    effort, startup instructions and optional environment ID string. These are session execution templates, not
@@ -29,13 +32,14 @@ execution assignment, or a precise dispatch gap.
    cloud execution. Missing/mismatched/unavailable capabilities block dispatch;
    never silently substitute model, effort, template or privileged destination.
    Do not infer effective settings, cost or quality from requested configuration.
-4. BEFORE dispatch, persist and verify recoverable protected attempt evidence:
-   intended-attempt identity, issue ID, selected agent ID and full template,
-   approved profile/source checkpoint,
+4. BEFORE dispatch, use `get_checkpoint` and `save_checkpoint` to persist and
+   verify recoverable protected attempt evidence:
+   intended-attempt identity, phase, issue ID, selected agent ID and full template,
+   approved configuration revision/digest checkpoint,
    requested model/effort, verified destination, owner and next check. If recording
    or readback fails or is uncertain, stop dispatch and reconcile that checkpoint.
-   An intended attempt is not proof of submission. This record is not an atomic
-   transaction, durable lock or exactly-once guarantee; interruption around sending
+   An intended attempt is not proof of submission. Its storage transaction does not make dispatch atomic
+   or provide an exactly-once guarantee; interruption around sending
    can still leave occurrence unknown. Recover the checkpoint after restart and
    inspect authoritative sessions/results before considering another attempt.
 5. Send the issue ID, required process skill, the selected agent's `instructions`
@@ -49,9 +53,15 @@ execution assignment, or a precise dispatch gap.
    administration invokes [operate-administration](../operate-administration/SKILL.md);
    publication invokes [conduct-release](../conduct-release/SKILL.md). Other work
    names its applicable process. Do not repeat objective/acceptance from the issue.
-6. Append returned session identity, response and observed effective metadata
-   (unknown when absent) to that attempt; verify the record. Pass only necessary
-   private context. A known rejection is not submission; a timeout, missing response
+6. Use `save_checkpoint` to record the actual returned `threadId` (stable session)
+   and `turnId` (specific turn, when returned), response and observed effective
+   metadata (unknown when absent); verify with `get_checkpoint`. Never invent IDs.
+   If creation succeeds but saving fails, retain those returned IDs in protected
+   task evidence and inspect that existing thread before retrying any dispatch.
+   When an authorized shared release already uses one session for several issues,
+   associate its actual thread ID with each issue/phase attempt instead of creating
+   duplicate release sessions. Preserve earlier implementation links.
+   Pass only necessary private context. A known rejection is not submission; a timeout, missing response
    or failed post-send record leaves dispatch uncertain until reconciled. Inspect
    actual sessions/results before retrying; an empty session list alone is not
    definitive failure. If checkpoint recovery is unavailable, stop dependent retry

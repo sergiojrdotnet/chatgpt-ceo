@@ -11,10 +11,6 @@
       "minLength": 1,
       "pattern": "\\S"
     },
-    "revision": {
-      "type": "integer",
-      "minimum": 1
-    },
     "effectiveAt": {
       "type": "string",
       "format": "date-time"
@@ -107,19 +103,23 @@
       "properties": {
         "preferredMin": {
           "type": "integer",
-          "minimum": 1
+          "minimum": 1,
+          "maximum": 9007199254740991
         },
         "preferredMax": {
           "type": "integer",
-          "minimum": 1
+          "minimum": 1,
+          "maximum": 9007199254740991
         },
         "activeMax": {
           "type": "integer",
-          "minimum": 1
+          "minimum": 1,
+          "maximum": 9007199254740991
         },
         "urgentIncidentMax": {
           "type": "integer",
-          "minimum": 1
+          "minimum": 1,
+          "maximum": 9007199254740991
         }
       },
       "required": [
@@ -207,7 +207,8 @@
         },
         "observationMinimumMinutes": {
           "type": "integer",
-          "minimum": 1
+          "minimum": 1,
+          "maximum": 9007199254740991
         }
       },
       "required": [
@@ -284,7 +285,6 @@
   "required": [
     "schemaVersion",
     "profileId",
-    "revision",
     "effectiveAt",
     "active",
     "fixtureOnly",

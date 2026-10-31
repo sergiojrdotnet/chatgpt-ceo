@@ -9,11 +9,14 @@ Owner: incident coordinator; named investigators/recovery executors own actions.
 Inputs: report or alert, affected scope and current evidence. Outcome: coordinated
 response with verified restoration and visible follow-up in one Linear incident.
 
+Configuration: call `get_operation_context`, then `get_selection_policy`, `get_release_policy` as needed.
+Use the same revision for all configuration reads; follow the linked contract.
+
 1. Read the current incident and relevant comments if one exists; correlate repeated
    alerts and related reports before creating another investigation. Establish
    current impact, affected users/destinations, urgency and timestamped evidence.
    Incident is a work type, not an assumption that every cause is a code bug.
-2. Refresh the [private profile contract](../../references/profile.md), scope and
+2. Refresh the [configuration contract](../../references/configuration.md), scope and
    available access. An urgent capacity/release exception is scoped to justified
    restoration, not blanket authority or general resumption of paused work.
 3. Assign investigation, recovery and communication ownership with next checkpoints.

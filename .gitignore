@@ -2,3 +2,9 @@ __pycache__/
 *.pyc
 .venv/
 dist/
+node_modules/
+*.sqlite*
+*.zip
+.env
+*.private.json
+*.private.env

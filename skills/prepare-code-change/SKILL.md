@@ -9,11 +9,14 @@ Owner: code executor. Input: Linear issue ID plus genuinely new delegation conte
 Outcome: a scoped implementation and validation approach grounded in current code.
 Consultation alone does not start execution.
 
+Configuration: call `get_operation_context`, then `get_agents` as needed.
+Use the same revision for all configuration reads; follow the linked contract.
+
 1. FIRST read the entire current issue and relevant comments/references, including
    acceptance and newer decisions. Missing essentials are explicit gaps. Establish
    In Progress before substantive execution, only if needed, and verify readback;
    report a failed transition truthfully without activating unrelated work.
-2. Refresh the [private profile contract](../../references/profile.md) for dependent
+2. Refresh the [configuration contract](../../references/configuration.md) for dependent
    work. Establish repository, target revision, branch/worktree and dirty state.
    Verify the session actually targets the intended checkout; preserve user changes
    and isolate parallel implementation. Read root and applicable nested AGENTS.md.
