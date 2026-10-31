@@ -1,0 +1,242 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { Worker } from "node:worker_threads";
+import { Store } from "../src/store.ts";
+import { configuration, digest } from "../src/model.ts";
+import type { Checkpoint } from "../src/model.ts";
+import example from "../examples/inactive-a.json" with { type: "json" };
+const fixture = () => configuration(example);
+export const checkpoint: Checkpoint = {
+  attemptId: "attempt-1",
+  agentId: "synthetic-builder-a",
+  ownerRef: "synthetic-owner",
+  scope: "Synthetic issue only",
+  nextCheck: "2030-01-01T00:00:00Z",
+  state: "intended",
+  evidenceRefs: [],
+};
+test("validation rejects incomplete, unknown, duplicate, invalid capacity/time/window and credentials", () => {
+  const good = fixture();
+  for (const bad of [
+    { ...good, secret: "no" },
+    { ...good, timezone: "not/a/zone" },
+    { ...good, agents: [good.agents[0], good.agents[0]] },
+    { ...good, capacity: { ...good.capacity, activeMax: 0 } },
+    { ...good, effectiveAt: "bad" },
+    { ...good, agents: [{ ...good.agents[0], environment: { id: "bad" } }] },
+    {
+      ...good,
+      agents: [{ ...good.agents[0], instructions: "Bearer abcdefghijklmnop" }],
+    },
+    {
+      ...good,
+      release: {
+        ...good.release,
+        restrictedWindows: [
+          { weekdays: [1], start: "10:00", end: "12:00" },
+          { weekdays: [1], start: "11:00", end: "13:00" },
+        ],
+      },
+    },
+  ])
+    assert.throws(() => configuration(bad));
+  for (const key of Object.keys(good)) {
+    const bad: Record<string, unknown> = { ...good };
+    delete bad[key];
+    assert.throws(() => configuration(bad));
+  }
+});
+test("atomic updates, stale reads, identical retry, identity and rollback guards survive restart", () => {
+  const dir = mkdtempSync(join(tmpdir(), "ceo-"));
+  let s = new Store(join(dir, "policy.sqlite"));
+  try {
+    assert.equal(s.adminRead().setupRequired, true);
+    assert.throws(() => s.read("context"), /SETUP_REQUIRED/);
+    const c = fixture(),
+      hash = digest(c);
+    assert.throws(
+      () => s.update("admin", "bad", 0, "0".repeat(64), c),
+      /DIGEST/,
+    );
+    assert.deepEqual(s.update("admin", "initial", 0, hash, c), {
+      revision: 1,
+      digest: hash,
+    });
+    assert.deepEqual(s.update("admin", "initial", 0, hash, c), {
+      revision: 1,
+      digest: hash,
+    });
+    assert.throws(
+      () => s.update("admin", "initial", 1, hash, c),
+      /IDEMPOTENCY/,
+    );
+    assert.throws(
+      () => s.update("other", "stale", 0, hash, c),
+      /REVISION_CONFLICT/,
+    );
+    const changed = { ...c, profileId: "different" };
+    assert.throws(
+      () => s.update("admin", "identity", 1, digest(changed), changed),
+      /IDENTITY/,
+    );
+    assert.equal(s.adminRead().revision, 1);
+    s.close();
+    s = new Store(join(dir, "policy.sqlite"));
+    assert.equal(s.read("agents", 1).revision, 1);
+    s.update("admin", "second", 1, hash, c);
+    assert.throws(() => s.read("release", 1), /REVISION_CONFLICT/);
+    assert.deepEqual(s.update("admin", "initial", 0, hash, c), {
+      revision: 1,
+      digest: hash,
+    });
+  } finally {
+    s.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+test("checkpoint CAS, evidence and uncertain outcomes persist; independent stores stay private; online backup restores", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "ceo-"));
+  let s = new Store(join(dir, "policy.sqlite"));
+  const other = new Store(":memory:");
+  try {
+    const c = fixture();
+    s.update("admin", "setup", 0, digest(c), c);
+    const first = s.saveCheckpoint("writer", "save", "SYN-1", 0, 1, checkpoint);
+    assert.equal(first.version, 1);
+    assert.deepEqual(first.checkpoint!.agent, c.agents[0]);
+    assert.equal(other.checkpoint("SYN-1").checkpoint, null);
+    assert.equal(other.adminRead().revision, 0);
+    assert.throws(
+      () => s.saveCheckpoint("writer", "conflict", "SYN-1", 0, 1, checkpoint),
+      /CHECKPOINT_CONFLICT/,
+    );
+    s.saveCheckpoint("writer", "uncertain", "SYN-1", 1, 1, {
+      ...checkpoint,
+      state: "uncertain",
+    });
+    assert.throws(
+      () =>
+        s.saveCheckpoint("writer", "retry", "SYN-1", 2, 1, {
+          ...checkpoint,
+          attemptId: "attempt-2",
+        }),
+      /UNRESOLVED/,
+    );
+    await s.backup(join(dir, "backup.sqlite"));
+    s.close();
+    s = new Store(join(dir, "backup.sqlite"));
+    assert.equal(s.checkpoint("SYN-1").checkpoint!.state, "uncertain");
+    assert.equal(s.adminRead().revision, 1);
+    assert.equal(
+      s.saveCheckpoint("writer", "save", "SYN-1", 0, 1, checkpoint).version,
+      1,
+    );
+  } finally {
+    s.close();
+    other.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+test("two simultaneous SQLite writers cannot both accept the same revision", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "ceo-"));
+  const path = join(dir, "db.sqlite");
+  const s = new Store(path);
+  const c = fixture();
+  s.update("admin", "setup", 0, digest(c), c);
+  try {
+    const code = `import {parentPort,workerData} from 'node:worker_threads';import {Store} from ${JSON.stringify(new URL("../src/store.ts", import.meta.url).href)};import {digest} from ${JSON.stringify(new URL("../src/model.ts", import.meta.url).href)};const s=new Store(workerData.path);parentPort.postMessage('ready');parentPort.once('message',()=>{try{s.update('admin',workerData.id,1,digest(workerData.c),workerData.c);parentPort.postMessage('saved');}catch(e){parentPort.postMessage(e.message);}finally{s.close();}});`;
+    const workers = ["one", "two"].map(
+      (id) => new Worker(code, { eval: true, workerData: { path, id, c } }),
+    );
+    await Promise.all(
+      workers.map(
+        (w) =>
+          new Promise<void>((resolve, reject) => {
+            w.once("message", () => resolve());
+            w.once("error", reject);
+          }),
+      ),
+    );
+    const results = workers.map(
+      (w) =>
+        new Promise<string>((resolve, reject) => {
+          w.once("message", resolve);
+          w.once("error", reject);
+        }),
+    );
+    workers.forEach((w) => w.postMessage("go"));
+    assert.deepEqual((await Promise.all(results)).sort(), [
+      "REVISION_CONFLICT",
+      "saved",
+    ]);
+    assert.equal(s.adminRead().revision, 2);
+    await Promise.all(workers.map((w) => w.terminate()));
+  } finally {
+    s.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+test("relational children round-trip, FK/unique constraints hold and a mid-update failure rolls back every table", async () => {
+  const { DatabaseSync } = await import("node:sqlite");
+  const dir = mkdtempSync(join(tmpdir(), "ceo-"));
+  const path = join(dir, "db.sqlite");
+  const s = new Store(path),
+    db = new DatabaseSync(path);
+  try {
+    const c = fixture();
+    c.agents.push({ ...c.agents[0], id: "second-agent" });
+    delete c.agents[1].environment;
+    c.bindings.github.repositories.push("synthetic/second");
+    c.release.restrictedWindows[0].weekdays = [4, 2];
+    s.update("admin", "initial", 0, digest(c), c);
+    assert.deepEqual(s.adminRead().configuration, c);
+    db.exec("PRAGMA foreign_keys=ON");
+    assert.equal(db.prepare("SELECT COUNT(*) AS n FROM agents").get()!.n, 2);
+    assert.equal(
+      db.prepare("SELECT COUNT(*) AS n FROM repositories").get()!.n,
+      2,
+    );
+    assert.equal(
+      db.prepare("SELECT COUNT(*) AS n FROM release_days").get()!.n,
+      2,
+    );
+    assert.throws(
+      () =>
+        db.prepare("INSERT INTO repositories VALUES(999,0,?)").run("orphan"),
+      /FOREIGN KEY/,
+    );
+    assert.throws(
+      () =>
+        db
+          .prepare("INSERT INTO repositories VALUES(1,2,?)")
+          .run("synthetic/second"),
+      /UNIQUE/,
+    );
+    db.exec(
+      "CREATE TRIGGER fail_children BEFORE INSERT ON agents WHEN NEW.revision=2 BEGIN SELECT RAISE(ABORT,'synthetic transaction interruption'); END;",
+    );
+    assert.throws(
+      () => s.update("admin", "interrupted", 1, digest(c), c),
+      /interruption/,
+    );
+    assert.equal(s.adminRead().revision, 1);
+    assert.equal(db.prepare("SELECT COUNT(*) AS n FROM bindings").get()!.n, 1);
+    assert.equal(
+      db
+        .prepare("SELECT COUNT(*) AS n FROM requests WHERE id='interrupted'")
+        .get()!.n,
+      0,
+    );
+    db.exec("DROP TRIGGER fail_children");
+    s.update("admin", "interrupted", 1, digest(c), c);
+    assert.equal(s.adminRead().revision, 2);
+    assert.equal(db.prepare("PRAGMA foreign_key_check").all().length, 0);
+  } finally {
+    db.close();
+    s.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

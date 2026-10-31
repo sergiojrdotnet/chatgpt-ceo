@@ -9,9 +9,12 @@ Owner: release executor, preferably the implementation owner. Inputs: issue ID,
 exact revision/artifacts, destinations and publication authority. Outcome: verified
 delivery and observation, or precise remaining release/validation gaps.
 
+Configuration: call `get_operation_context`, then `get_release_policy` as needed.
+Use the same revision for all configuration reads; follow the linked contract.
+
 1. Read the full issue and relevant comments/references, product release/runbook,
    architecture, safety and target-binding instructions. Refresh the
-   [private profile contract](../../references/profile.md). Confirm exact scope,
+   [configuration contract](../../references/configuration.md). Confirm exact scope,
    destinations/dependencies and authority; reading access does not grant writes.
    Follow applicable technical publication instructions supplied by the configured
    agent or project, including a repository skill when those instructions require

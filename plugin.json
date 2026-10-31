@@ -2,5 +2,10 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "chatgpt-ceo",
   "version": "0.1.0",
-  "description": "Nine focused processes for planning, execution, administration and verified delivery."
+  "description": "Focused coordination processes with a private single-company configuration MCP.",
+  "extensions": {
+    "com.openai": {
+      "onboardingSkill": "./skills/setup/SKILL.md"
+    }
+  }
 }

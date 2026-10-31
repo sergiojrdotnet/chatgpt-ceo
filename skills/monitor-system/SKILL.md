@@ -10,8 +10,11 @@ optional duration, baseline and release-completion time. Outcome: timestamped
 coverage and findings with explicit evidence limits. Observation is read-only;
 it does not authorize remediation, device actions or schedules.
 
+Configuration: call `get_operation_context`, then `get_release_policy` as needed.
+Use the same revision for all configuration reads; follow the linked contract.
+
 1. Read relevant issue/comments when task-bound, product monitoring and target-binding
-   runbooks, and the [private profile contract](../../references/profile.md).
+   runbooks, and the [configuration contract](../../references/configuration.md).
    For independent observation use the explicit positive duration or an approved
    private/runbook default. If neither exists, state the missing duration; do not
    invent one. Release observation must meet its private minimum after completion;

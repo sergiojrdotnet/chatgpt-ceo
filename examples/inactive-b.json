@@ -1,7 +1,6 @@
 {
   "schemaVersion": 1,
   "profileId": "synthetic-profile-b",
-  "revision": 1,
   "effectiveAt": "2025-01-01T00:00:00Z",
   "active": false,
   "fixtureOnly": true,

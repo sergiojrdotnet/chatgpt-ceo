@@ -11,10 +11,6 @@
       "minLength": 1,
       "pattern": "\\S"
     },
-    "revision": {
-      "type": "integer",
-      "minimum": 1
-    },
     "effectiveAt": {
       "type": "string",
       "format": "date-time"
@@ -284,7 +280,6 @@
   "required": [
     "schemaVersion",
     "profileId",
-    "revision",
     "effectiveAt",
     "active",
     "fixtureOnly",

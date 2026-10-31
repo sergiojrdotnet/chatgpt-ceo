@@ -10,8 +10,11 @@ identity and available repository or administrative outcome evidence. Outcome:
 truthful Linear state, accountable next action and a verified/blocked/failed/uncertain
 result, never a parallel work board.
 
+Configuration: call `get_operation_context`, then `get_agents`, `get_checkpoint` as needed.
+Use the same revision for all configuration reads; follow the linked contract.
+
 1. Read the complete current issue and relevant comments; refresh the
-   [private profile contract](../../references/profile.md) before dependent
+   [configuration contract](../../references/configuration.md) before dependent
    resumption, consequential action or completion. Preserve pause and authority.
 2. Compare actual session state and timestamps with claimed progress. Inspect exact
    PR head, completed independent review, findings and CI when applicable; for
@@ -25,7 +28,7 @@ result, never a parallel work board.
    delete evidence or cancel records to conceal duplication. Unknown occurrence
    remains uncertain until authoritative readback resolves it. A matching effect
    may resolve a lost response; empty/inaccessible readback does not justify retry.
-   Recover protected attempt/checkpoint evidence after restart; no exactly-once
+   Use `get_checkpoint` after restart and `save_checkpoint` for verified updates; no exactly-once
    or durable-lock guarantee is provided by this package.
 5. Apply [state evidence](../../references/state-evidence.md). A draft PR stays In
    Progress; an administrative draft can satisfy a draft-only acceptance outcome.

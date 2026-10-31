@@ -28,5 +28,5 @@ transitions that contradict evidence. Unknown effect remains uncertain.
 Keep issue comments concise: action/result and time, exact version or bounded
 record evidence, acceptance comparison, remaining gap, next owner/action. Distinguish
 requested from observed model/effort and failed/denied/pending/uncertain effects.
-Use audience-safe references, never full private profiles, source documents,
+Use audience-safe references, never full private configurations, source documents,
 credentials or sensitive raw payloads. Opaque IDs can still be sensitive.
