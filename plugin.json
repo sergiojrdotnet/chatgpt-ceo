@@ -1,0 +1,6 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "chatgpt-ceo-plugin",
+  "version": "0.1.0",
+  "description": "Coordinate bounded work across Linear, GitHub and ERPNext with explicit policy checks."
+}
