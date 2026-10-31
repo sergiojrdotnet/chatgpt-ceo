@@ -5,7 +5,7 @@ ChatGPT manages the installed CEO plugin, its connection and presentation. This
 repository owns the server and skill source; skill updates are applied to that same
 ChatGPT plugin while preserving its registered MCP connection.
 Linear owns objectives, acceptance, decisions and delivery state. The server stores
-configuration and recoverable checkpoint evidence; it does not schedule, dispatch,
+configuration and immutable coordination events; it does not schedule, dispatch,
 grant operational authority or guarantee exactly-once external effects.
 
 | Skill | Outcome |
@@ -38,11 +38,12 @@ that guidance requires it. Reading configuration grants no business permission.
 | `get_configuration` | None | Admin read/setup status |
 | `validate_configuration` | `configuration` | Admin validation/review digest |
 | `update_configuration` | `configuration`, `expectedRevision`, `reviewDigest`, `requestId` | Admin write |
-| `get_checkpoint` | `issueId` | Read latest issue checkpoint and related sessions |
-| `save_checkpoint` | `issueId`, `expectedVersion`, `expectedRevision`, `checkpoint`, `requestId` | Checkpoint write |
+| `list_coordination_events` | Optional issue/scope/action/time filters, `limit`, `cursor` | Read bounded immutable history |
+| `append_coordination_event` | `event`, `expectedRevision`, `requestId` | Separate event write |
 
 Follow the [configuration contract](references/configuration.md) for consistent
-subject reads, fail-closed behavior and uncertain outcomes. Configuration follows
+subject reads and fail-closed behavior. The [event contract](references/coordination-events.md)
+defines immutable outcomes, actual session attribution, corrections and pagination. Configuration follows
 a closed [schema](references/policy.schema.json); revisions are server-owned.
 The [examples](examples/inactive-a.json) are synthetic, inactive and execution-disabled.
 No company IDs, endpoints, credentials or business values belong in public source.

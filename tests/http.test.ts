@@ -14,7 +14,7 @@ const config = {
   audience: "synthetic-audience",
   readers: ["reader@example.test", "admin@example.test", "writer@example.test"],
   admins: ["admin@example.test"],
-  checkpointWriters: ["writer@example.test"],
+  eventWriters: ["writer@example.test"],
 };
 async function fixture() {
   const key = await generateKeyPair("RS256");
@@ -72,10 +72,15 @@ test("fresh SDK consumers setup, discover nine tools, read subjects consistently
   const f = await fixture();
   const admin = await f.client("admin@example.test"),
     reader = await f.client("reader@example.test"),
-    writer = await f.client("writer@example.test");
+    writer = await f.client("writer@example.test", true);
   try {
     assert.equal(reader.getServerVersion()?.name, "ceo");
-    assert.equal((await reader.listTools()).tools.length, 9);
+    const names = (await reader.listTools()).tools.map((tool) => tool.name);
+    assert.equal(names.length, 9);
+    assert.ok(names.includes("append_coordination_event"));
+    assert.ok(names.includes("list_coordination_events"));
+    assert.ok(!names.includes("get_checkpoint"));
+    assert.ok(!names.includes("save_checkpoint"));
     assert.equal(
       data(await admin.callTool({ name: "get_configuration", arguments: {} }))
         .setupRequired,
@@ -153,41 +158,88 @@ test("fresh SDK consumers setup, discover nine tools, read subjects consistently
         .revision,
       1,
     );
-    const checkpoint = {
-      attemptId: "attempt-1",
-      phase: "implementation",
-      agentId: "synthetic-builder-a",
-      ownerRef: "owner",
-      scope: "synthetic only",
-      nextCheck: "2030-01-01T00:00:00Z",
-      state: "intended",
-      evidenceRefs: [],
-    };
-    const cp = {
+    const event = {
+      action: "delegation",
+      scope: { type: "issue", id: "SYN-1" },
       issueId: "SYN-1",
-      expectedVersion: 0,
-      expectedRevision: 1,
-      checkpoint,
-      requestId: "checkpoint",
+      phase: "implementation",
+      reason: "Approved ready work",
+      result: "Dispatch response unavailable",
+      outcome: "uncertain",
+      observedAt: "2026-01-01T00:00:00Z",
+      evidenceRefs: [],
+      threadId: "synthetic-thread",
+      turnId: "synthetic-turn",
     };
+    const argsEvent = { expectedRevision: 1, event, requestId: "event" };
+    for (const denied of [admin, reader])
+      assert.equal(
+        (
+          await denied.callTool({
+            name: "append_coordination_event",
+            arguments: argsEvent,
+          })
+        ).isError,
+        true,
+      );
+    const saved = data(
+      await writer.callTool({
+        name: "append_coordination_event",
+        arguments: argsEvent,
+      }),
+    );
+    assert.equal(saved.event.outcome, "uncertain");
+    assert.equal(saved.event.producerId.length, 64);
+    assert.deepEqual(
+      data(
+        await writer.callTool({
+          name: "append_coordination_event",
+          arguments: argsEvent,
+        }),
+      ),
+      saved,
+    );
+    const listed = data(
+      await reader.callTool({
+        name: "list_coordination_events",
+        arguments: { issueId: "SYN-1", limit: 1 },
+      }),
+    );
+    assert.deepEqual(listed.events, [saved.event]);
+    assert.equal(listed.hasMore, false);
+    for (const extra of [
+      { sessions: [] },
+      { producerId: "forged" },
+      { threadId: ["a", "b"] },
+      { turnId: "turn", threadId: undefined },
+    ]) {
+      assert.equal(
+        (
+          await writer.callTool({
+            name: "append_coordination_event",
+            arguments: { ...argsEvent, event: { ...event, ...extra } },
+          })
+        ).isError,
+        true,
+      );
+    }
     assert.equal(
-      (await admin.callTool({ name: "save_checkpoint", arguments: cp }))
-        .isError,
+      (
+        await reader.callTool({
+          name: "list_coordination_events",
+          arguments: { limit: 101 },
+        })
+      ).isError,
       true,
     );
     assert.equal(
-      data(await writer.callTool({ name: "save_checkpoint", arguments: cp }))
-        .version,
-      1,
-    );
-    assert.equal(
-      data(
-        await reader.callTool({
-          name: "get_checkpoint",
-          arguments: { issueId: "SYN-1" },
-        }),
-      ).checkpoint.agent.instructions,
-      example.agents[0].instructions,
+      (
+        await writer.callTool({
+          name: "append_coordination_event",
+          arguments: { ...argsEvent, requestId: "stale", expectedRevision: 2 },
+        })
+      ).isError,
+      true,
     );
   } finally {
     await Promise.all([admin.close(), reader.close(), writer.close()]);

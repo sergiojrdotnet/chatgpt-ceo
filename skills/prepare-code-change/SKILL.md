@@ -32,8 +32,8 @@ Use the same revision for all configuration reads; follow the linked contract.
    and choose meaningful evidence. Never reproduce destructive or physical-access
    effects in production as setup. Test-first is not a universal ceremony.
 6. Choose setup/checks from CONTRIBUTING and component docs, including broader
-   required gates. Follow configured agent and repository review/CI/merge policy;
-   resolve conflicts without imposing a global provider or merge method. State affected behavior, controlling sources, documentation
+   required implementation and functional validation gates. State affected behavior,
+   controlling sources, documentation
    impact, verification and unavailable/skipped coverage before editing. Continue
    routine authorized implementation without ceremonial approval.
 
@@ -41,6 +41,6 @@ Technical facts stay in the product repository. Maintain guidance only for concr
 findings. For preparation/monitoring process migration, preserve existing source
 procedures until replacement discovery/loading and exact version are verified in
 an actual executor. Preserve applicable product-specific technical procedures.
-Handoff: implementation/review evidence goes to
-[reconcile-execution](../reconcile-execution/SKILL.md); publication separately invokes
-[conduct-release](../conduct-release/SKILL.md). Preparation grants no release authority.
+Handoff: provide the implementation and validation approach to the code executor.
+Repository instructions govern subsequent contribution work. This skill ends at
+preparation and grants no publication authority.

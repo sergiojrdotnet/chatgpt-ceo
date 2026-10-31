@@ -8,7 +8,7 @@ const project = `ceo-test-${process.pid}`;
 const envFile = join(directory, "server.env");
 writeFileSync(
   envFile,
-  "PUBLIC_ORIGIN=https://ceo.example.test\nCF_ACCESS_ISSUER=https://synthetic.cloudflareaccess.com\nCF_ACCESS_AUD=synthetic\nREAD_EMAILS=reader@example.test\nADMIN_EMAILS=reader@example.test\nCHECKPOINT_EMAILS=reader@example.test\n",
+  "PUBLIC_ORIGIN=https://ceo.example.test\nCF_ACCESS_ISSUER=https://synthetic.cloudflareaccess.com\nCF_ACCESS_AUD=synthetic\nREAD_EMAILS=reader@example.test\nADMIN_EMAILS=reader@example.test\nEVENT_EMAILS=reader@example.test\n",
   { mode: 0o600 },
 );
 const env = {

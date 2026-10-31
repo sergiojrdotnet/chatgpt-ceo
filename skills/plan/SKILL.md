@@ -36,3 +36,9 @@ Use the same revision for all configuration reads; follow the linked contract.
 
 Handoff: [select-work](../select-work/SKILL.md) selects ready work within current
 capacity. Planning does not dispatch executors or create schedules.
+
+Append a `planning` event through `append_coordination_event` for a material
+priority, milestone or scope decision, with the short objective reason and observed
+Linear result. Use canonical project/issue scope and references, not a copied plan.
+Follow the [event contract](../../references/coordination-events.md) for payload,
+attribution and recovery.

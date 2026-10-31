@@ -34,3 +34,10 @@ Do not install, activate, provision identities or change security settings as se
    activate schedules or resume paused work merely because setup succeeded.
 
 Normal consumers follow the [configuration contract](../../references/configuration.md).
+
+After verified configuration publication, append a `configuration` event through
+`append_coordination_event` using the new revision, approved-change reason and
+readback evidence. Admin authority does not imply event-write authority. If the
+append is unavailable, report the history gap without repeating the policy write.
+Follow the [event contract](../../references/coordination-events.md) for payload,
+attribution and recovery.

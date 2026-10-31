@@ -10,7 +10,8 @@ import {
   digest,
   DomainError,
   identifier,
-  checkpointSchema,
+  appendEventSchema,
+  listEventsSchema,
 } from "./model.ts";
 import type { Principal } from "./model.ts";
 import type { Store } from "./store.ts";
@@ -27,14 +28,14 @@ export function mcp(store: Store) {
       if (!authInfo) throw new ProtocolError(-32024, "Authentication required");
       const p: Principal = {
         id: authInfo.clientId,
-        roles: new Set(authInfo.scopes as ("read" | "admin" | "checkpoint")[]),
+        roles: new Set(authInfo.scopes as ("read" | "admin" | "event")[]),
         expiresAt: (authInfo.expiresAt ?? 0) * 1000,
       };
       const server = new McpServer(
         { name: "ceo", version: "0.1.0" },
         {
           instructions:
-            "Read operation context then needed subject tools at the same revision. Configuration is not operational authority. Missing, partial, stale or conflicting reads block dependent decisions. Admin writes require review; checkpoint acknowledgement is not dispatch or exactly-once execution.",
+            "Read operation context then needed subject tools at the same revision. Configuration is not operational authority. Missing, partial, stale or conflicting reads block dependent decisions. Admin writes require review; event acknowledgement is not dispatch or exactly-once execution.",
         },
       );
       function result(value: object) {
@@ -43,7 +44,7 @@ export function mcp(store: Store) {
           structuredContent: value as Record<string, unknown>,
         };
       }
-      function run(role: "read" | "admin" | "checkpoint", fn: () => object) {
+      function run(role: "read" | "admin" | "event", fn: () => object) {
         try {
           authorize(p, role);
           return result(fn());
@@ -151,42 +152,24 @@ export function mcp(store: Store) {
           ),
       );
       server.registerTool(
-        "get_checkpoint",
+        "list_coordination_events",
         {
           description:
-            "Recover the latest private issue checkpoint and its related phase sessions. No record or absent session does not prove that dispatch failed.",
-          inputSchema: z.object({ issueId: identifier }).strict(),
+            "Read immutable coordination history with bounded snapshot pagination. Linear owns current task state; absence never proves an external action failed.",
+          inputSchema: listEventsSchema,
           annotations: read,
         },
-        (a) => run("read", () => store.checkpoint(a.issueId)),
+        (a) => run("read", () => store.listEvents(a)),
       );
       server.registerTool(
-        "save_checkpoint",
+        "append_coordination_event",
         {
           description:
-            "Checkpoint-writer-only optimistic evidence update; preserves selected template and revision. Never dispatches or guarantees exactly-once effects.",
-          inputSchema: z
-            .object({
-              issueId: identifier,
-              expectedVersion: z.number().int().nonnegative(),
-              expectedRevision: z.number().int().positive(),
-              checkpoint: checkpointSchema,
-              requestId: identifier,
-            })
-            .strict(),
+            "Event-writer-only immutable factual decision/action/result. Exact request retries return the original event; no dispatch or exactly-once external effects. Corrections append linked events.",
+          inputSchema: appendEventSchema,
           annotations: write,
         },
-        (a) =>
-          run("checkpoint", () =>
-            store.saveCheckpoint(
-              p.id,
-              a.requestId,
-              a.issueId,
-              a.expectedVersion,
-              a.expectedRevision,
-              a.checkpoint,
-            ),
-          ),
+        (a) => run("event", () => store.appendEvent(p.id, a)),
       );
       return server;
     },
