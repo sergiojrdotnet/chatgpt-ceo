@@ -45,10 +45,12 @@ A later outcome of an action is a new normal event with the same correlation ID;
 it needs a correction link only when correcting an earlier factual record.
 
 `list_coordination_events({issueId?, scopeType?, scopeId?, action?, from?, to?,
-limit?, cursor?})` requires read authority. `scopeId` requires `scopeType`; filters
+limit?, cursor?, order?})` requires read authority. `scopeId` requires `scopeType`; filters
 combine with AND. `from` and `to` are inclusive observed-time bounds. Default limit
 is 50, minimum 1, maximum 100. The result is `{events, hasMore, nextCursor}`.
-Events are ordered by immutable insertion sequence, not caller timestamps. Follow
+Events are ordered by immutable insertion sequence, not caller timestamps. Optional
+`order: "asc" | "desc"` defaults to `asc` for existing consumers; the dashboard
+requests `desc` (newest recorded first). Order is bound to the cursor like filters. Follow
 `nextCursor` until null, preserving filters; pages pin a snapshot high-water mark,
 so concurrent new events appear only in a fresh traversal. Cursors are opaque,
 store-bound, filter-bound and invalid after a clean reset. Do not infer absence from

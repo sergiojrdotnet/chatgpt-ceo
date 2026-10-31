@@ -528,8 +528,13 @@ export class Store {
         fail("INVALID_CURSOR");
       }
     }
-    const clauses = ["seq>?", "seq<=?"],
-      values: SQLInputValue[] = [after, through];
+    const descending = filters.order === "desc";
+    const clauses = ["seq<=?"],
+      values: SQLInputValue[] = [through];
+    if (cursor || !descending) {
+      clauses.push(descending ? "seq<?" : "seq>?");
+      values.push(after);
+    }
     for (const [key, column, op] of [
       ["issueId", "issue_id", "="],
       ["scopeType", "scope_type", "="],
@@ -544,7 +549,7 @@ export class Store {
       }
     const rows = this.db
       .prepare(
-        `SELECT seq,event_id FROM coordination_events WHERE ${clauses.join(" AND ")} ORDER BY seq ASC LIMIT ?`,
+        `SELECT seq,event_id FROM coordination_events WHERE ${clauses.join(" AND ")} ORDER BY seq ${descending ? "DESC" : "ASC"} LIMIT ?`,
       )
       .all(...values, limit + 1);
     const hasMore = rows.length > limit,

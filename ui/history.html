@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <!--CSP-->
+    <title>Coordination history</title>
+    <!--STYLE-->
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">CEO · Recorded decisions</p>
+        <h1>Coordination history</h1>
+        <p>
+          Immutable decisions and observed results. Linear owns current work
+          state; a confirmed action does not mean an issue is Done.
+        </p>
+      </header>
+      <form id="filters">
+        <fieldset id="controls" disabled>
+          <legend>Filter history</legend>
+          <label
+            >Issue identifier<input
+              name="issueId"
+              maxlength="160"
+              placeholder="SYN-123"
+              autocomplete="off"
+          /></label>
+          <label
+            >Scope<select name="scopeType">
+              <option value="">All scopes</option>
+              <option>issue</option>
+              <option>project</option>
+              <option>configuration</option>
+              <option>incident</option>
+            </select></label
+          >
+          <label
+            >Scope identifier<input
+              name="scopeId"
+              maxlength="160"
+              autocomplete="off"
+          /></label>
+          <label
+            >Recorded order<select name="order">
+              <option value="desc">Newest first</option>
+              <option value="asc">Oldest first</option>
+            </select></label
+          >
+          <button type="submit">Apply filters</button
+          ><button type="button" id="refresh">Refresh</button>
+        </fieldset>
+      </form>
+      <p id="status" role="status" aria-live="polite">Connecting to ChatGPT…</p>
+      <section
+        id="events"
+        aria-label="Coordination events"
+        aria-busy="true"
+      ></section>
+      <nav aria-label="History pages">
+        <button id="first" disabled>First page</button><span id="page"></span
+        ><button id="next" disabled>Next page</button>
+      </nav>
+      <p class="note">
+        50 events per page. Refresh starts a new snapshot. Session navigation is
+        unavailable unless a canonical link has been verified; identifiers are
+        shown as text.
+      </p>
+    </main>
+    <!--SCRIPT-->
+  </body>
+</html>

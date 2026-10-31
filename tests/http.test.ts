@@ -68,7 +68,7 @@ function data(result: Awaited<ReturnType<Client["callTool"]>>) {
   assert.notEqual(result.isError, true, JSON.stringify(result));
   return result.structuredContent as Record<string, any>;
 }
-test("fresh SDK consumers setup, discover nine tools, read subjects consistently and enforce distinct write roles", async () => {
+test("fresh SDK consumers setup, discover ten tools, read subjects consistently and enforce distinct write roles", async () => {
   const f = await fixture();
   const admin = await f.client("admin@example.test"),
     reader = await f.client("reader@example.test"),
@@ -76,7 +76,49 @@ test("fresh SDK consumers setup, discover nine tools, read subjects consistently
   try {
     assert.equal(reader.getServerVersion()?.name, "ceo");
     const names = (await reader.listTools()).tools.map((tool) => tool.name);
-    assert.equal(names.length, 9);
+    assert.equal(names.length, 10);
+    const tools = (await reader.listTools()).tools;
+    const show = tools.find((t) => t.name === "show_coordination_history")!;
+    assert.deepEqual(show._meta?.ui, {
+      resourceUri: "ui://ceo/coordination-history/v1.html",
+    });
+    assert.equal(
+      tools.find((t) => t.name === "list_coordination_events")?._meta,
+      undefined,
+    );
+    assert.equal(show.annotations?.readOnlyHint, true);
+    const resources = await reader.listResources();
+    assert.equal(resources.resources.length, 1);
+    const resource = await reader.readResource({
+      uri: "ui://ceo/coordination-history/v1.html",
+    });
+    assert.equal(resource.contents[0].mimeType, "text/html;profile=mcp-app");
+    assert.ok(
+      "text" in resource.contents[0] &&
+        resource.contents[0].text.includes("connect-src 'none'"),
+    );
+    assert.deepEqual(resource.contents[0]._meta?.ui, {
+      prefersBorder: true,
+      csp: { connectDomains: [], resourceDomains: [], frameDomains: [] },
+    });
+    const shown = await reader.callTool({
+      name: "show_coordination_history",
+      arguments: { issueId: "SYN-1" },
+    });
+    assert.equal(shown.isError, undefined);
+    assert.deepEqual(shown._meta, {
+      historyFilters: { issueId: "SYN-1", order: "desc" },
+    });
+    assert.equal(JSON.stringify(shown.content).includes("SYN-1"), false);
+    assert.equal(
+      (
+        await reader.callTool({
+          name: "show_coordination_history",
+          arguments: { scopeId: "missing-type" },
+        })
+      ).isError,
+      true,
+    );
     assert.ok(names.includes("append_coordination_event"));
     assert.ok(names.includes("list_coordination_events"));
     assert.ok(!names.includes("get_checkpoint"));
@@ -271,6 +313,34 @@ test("JWT signature, issuer, audience, expiry, identity and Origin deny access w
       }),
     ])
       assert.equal(await auth(headers), undefined);
+    for (const method of ["resources/read", "tools/call"]) {
+      for (const token of [
+        await f.token("outside@example.test"),
+        await f.token("reader@example.test", {}, 1),
+      ]) {
+        const denied = await fetch(f.url, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "cf-access-jwt-assertion": token,
+          },
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method,
+            params:
+              method === "resources/read"
+                ? { uri: "ui://ceo/coordination-history/v1.html" }
+                : { name: "show_coordination_history", arguments: {} },
+          }),
+        });
+        assert.equal(denied.status, 401);
+        assert.equal(
+          (await denied.text()).includes("Coordination history"),
+          false,
+        );
+      }
+    }
     const other = authentication({ ...config, audience: "wrong" }, f.keys);
     assert.equal(
       await other(new Headers({ "cf-access-jwt-assertion": token })),
@@ -306,7 +376,7 @@ test("SDK v2 negotiates dated protocol versions and serves current stateless dis
   const f = await fixture();
   try {
     const modern = await f.client("reader@example.test", true);
-    assert.equal((await modern.listTools()).tools.length, 9);
+    assert.equal((await modern.listTools()).tools.length, 10);
     await modern.close();
     async function rpc(
       method: string,

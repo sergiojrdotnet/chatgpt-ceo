@@ -6,6 +6,7 @@ RUN --mount=type=secret,id=proxy_ca \
     if [ -f /run/secrets/proxy_ca ]; then export NODE_EXTRA_CA_CERTS=/run/secrets/proxy_ca; fi; \
     npm ci --omit=dev --ignore-scripts --strict-ssl=true && npm cache clean --force
 COPY --chown=node:node src ./src
+COPY --chown=node:node ui ./ui
 COPY --chown=node:node references/policy.schema.json ./references/policy.schema.json
 RUN mkdir -p /data && chown node:node /data
 ARG REVISION=unknown
