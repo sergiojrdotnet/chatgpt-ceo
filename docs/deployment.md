@@ -10,7 +10,7 @@ volume and backups. It is not a credential vault. There is no automatic CI deplo
 ## Build and install
 
 1. Check out the reviewed commit; run `npm ci && npm run check` with Node 24.13+.
-   Python 3 with `requirements-dev.txt` is required by package checks. Build
+   Python 3 with `requirements-dev.txt` is required by skill checks. Build
    `docker build --build-arg REVISION="$(git rev-parse HEAD)" -t chatgpt-ceo:reviewed .`.
    In a managed cloud build, supply the platform CA using
    `--secret id=proxy_ca,src="$CODEX_PROXY_CERT"`; never disable TLS verification.
@@ -70,20 +70,13 @@ Do not delete the volume during container replacement. Existing checkpoint/audit
 history has no automatic pruning; observe disk usage and choose an explicit private
 retention policy before long-term growth becomes material.
 
-## Private plugin installation
+## ChatGPT connection
 
-The public source contains generic skills and no live endpoint. Prepare a private
-portable `mcp.json` with the single `ceo` streamable-http server,
-verified HTTPS URL, and per-server `extensions.com.openai.auth` OAuth configuration.
-Use the provider's actual client mode/ID/endpoints; no client secret in the file.
-Run `python scripts/package.py --connection /private/mcp.json --output /private/ceo.zip`.
-The generator copies the canonical skills and validates contained links. It does
-not maintain another editable skill tree or perform endpoint substitution at host
-runtime. Keep the generated package private. The user installs and authenticates
-manually, then invokes the packaged setup skill. Test setup in fresh and existing
-conversations; local SDK tests do not establish installed-host acceptance.
+The installed CEO plugin and its registered MCP connection are managed in ChatGPT.
+The user connects and authenticates manually. Apply canonical skills and their
+references to that same plugin without replacing its identity, connection or
+presentation. Invoke setup after authentication and verify both skills and tools
+in a fresh conversation. Local SDK tests do not establish installed-host behavior.
 
-Sources: [OpenAI packaging/auth/onboarding](https://developers.openai.com/plugins/build/plugins),
-[OpenAI extensions](https://github.com/openai/mcp-extensions/blob/main/docs/spec.md).
-Structured Settings is a host UI contract with server-owned persistence; the focused
-setup skill and subject tools suffice here, so no settings UI extension is advertised.
+See [OpenAI connection testing](https://developers.openai.com/plugins/deploy/connect-chatgpt)
+for the client connection and verification flow.

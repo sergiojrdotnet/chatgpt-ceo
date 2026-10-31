@@ -36,7 +36,7 @@ Use the same revision for all configuration reads; follow the linked contract.
    remains uncertain until authoritative readback resolves it. A matching effect
    may resolve a lost response; empty/inaccessible readback does not justify retry.
    Use `get_checkpoint` after restart and `save_checkpoint` for verified updates; no exactly-once
-   or durable-lock guarantee is provided by this package.
+   or durable-lock guarantee is provided by these coordination skills.
 5. Apply [state evidence](../../references/state-evidence.md). A draft PR stays In
    Progress; an administrative draft can satisfy a draft-only acceptance outcome.
    Merge is not publication; publication is not acceptance. Compare every

@@ -1,6 +1,9 @@
 # CEO
 
-Focused coordination skills and a private, single-company configuration MCP.
+A single-company configuration MCP server and canonical coordination skills.
+ChatGPT manages the installed CEO plugin, its connection and presentation. This
+repository owns the server and skill source; skill updates are applied to that same
+ChatGPT plugin while preserving its registered MCP connection.
 Linear owns objectives, acceptance, decisions and delivery state. The server stores
 configuration and recoverable checkpoint evidence; it does not schedule, dispatch,
 grant operational authority or guarantee exactly-once external effects.
@@ -44,7 +47,7 @@ a closed [schema](references/policy.schema.json); revisions are server-owned.
 The [examples](examples/inactive-a.json) are synthetic, inactive and execution-disabled.
 No company IDs, endpoints, credentials or business values belong in public source.
 
-## Development and installation
+## Development
 
 ```sh
 npm ci
@@ -55,11 +58,13 @@ git diff --check
 
 Tests cover authenticated official-SDK requests, separate authorities, transactions,
 concurrent writers, restart, backup restore, incomplete/conflicting reads and private
-package isolation. Scenario fixtures retain process-level review cases; they are
+skill frontmatter, contained references and schema contracts. Scenario fixtures retain process-level review cases; they are
 not a claim of model-behavior evaluation. Local synthetic tests do not establish
 installed-host discovery, actual private access, production deployment or activation.
 
-[Manual deployment and private packaging](docs/deployment.md) describes Docker,
-SQLite recovery, Access/Tunnel requirements and generation of one private package
-from these canonical skills plus an operator-supplied MCP connection. The user
-installs and authenticates manually. There is no automatic production deployment.
+[Manual server deployment](docs/deployment.md) covers Docker, SQLite recovery and
+Access/Tunnel requirements. There is no automatic production deployment. The user
+connects and authenticates the MCP in ChatGPT; the installed CEO plugin contains
+both its tools and the skills maintained here. Its setup skill configures policy
+through the authenticated MCP. Keep account-specific plugin metadata outside this
+repository and verify skill and tool behavior together after an update.

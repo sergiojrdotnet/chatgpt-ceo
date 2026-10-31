@@ -5,16 +5,16 @@ description: Configure the CEO plugin's single-company policy after manual insta
 
 # Configure CEO
 
-The user installs the private package and authenticates its MCP connection manually.
+The user connects the CEO plugin in ChatGPT and authenticates its MCP connection manually.
 Do not install, activate, provision identities or change security settings as setup.
 
 1. Call `get_configuration`. Unauthorized access requires the operator's existing
    admin route; do not bypass it. `setupRequired=true` means no policy exists and
    `expectedRevision=0`; otherwise preserve current identity and inspect the current
    configuration/revision. Credentials belong in the authenticated connection,
-   never in policy values, instructions, issue comments or package source.
+   never in policy values, instructions, issue comments or public source.
 2. Gather only missing company bindings, owner/timezone, agents, capacity/selection
-   and release/observation constraints using the packaged
+   and release/observation constraints using the supplied
    [schema](../../references/policy.schema.json). No invented IDs, environment
    objects, model selections or business defaults. Each agent has a unique ID,
    selection description, startup instructions, model/effort and optional exact
