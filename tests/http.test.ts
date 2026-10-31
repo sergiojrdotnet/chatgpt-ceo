@@ -74,6 +74,7 @@ test("fresh SDK consumers setup, discover nine tools, read subjects consistently
     reader = await f.client("reader@example.test"),
     writer = await f.client("writer@example.test");
   try {
+    assert.equal(reader.getServerVersion()?.name, "ceo");
     assert.equal((await reader.listTools()).tools.length, 9);
     assert.equal(
       data(await admin.callTool({ name: "get_configuration", arguments: {} }))

@@ -1,4 +1,4 @@
-# ChatGPT CEO
+# CEO
 
 Focused coordination skills and a private, single-company configuration MCP.
 Linear owns objectives, acceptance, decisions and delivery state. The server stores

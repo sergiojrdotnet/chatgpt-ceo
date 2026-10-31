@@ -18,9 +18,9 @@ def connection(value):
     if set(value) != {'$schema', 'mcpServers'} or value['$schema'] != 'https://agent-plugins.org/schemas/1.0.0/mcp.schema.json':
         raise ValueError('Expected portable MCP configuration')
     servers = value['mcpServers']
-    if set(servers) != {'ceo-configuration'}:
-        raise ValueError('Expected only ceo-configuration')
-    server = servers['ceo-configuration']
+    if set(servers) != {'ceo'}:
+        raise ValueError('Expected only ceo')
+    server = servers['ceo']
     if set(server) != {'type', 'url', 'extensions'} or server['type'] != 'streamable-http':
         raise ValueError('Expected Streamable HTTP connection')
     def url(raw):
@@ -61,6 +61,9 @@ def build(output, settings):
     assert manifest['$schema'] == 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json'
     assert manifest['version'] == '0.1.0'
     assert manifest['extensions']['com.openai']['onboardingSkill'] == './skills/setup/SKILL.md'
+    assert manifest['name'] == 'ceo'
+    assert manifest['extensions']['com.openai']['interface']['displayName'] == 'CEO'
+    package_root = manifest['name']
     paths = [ROOT / name for name in FILES]
     for path in paths:
         assert path.is_file() and not path.is_symlink() and ROOT in path.resolve().parents
@@ -73,12 +76,12 @@ def build(output, settings):
                 meta = yaml.safe_load(content.split('---',2)[1])
                 assert meta['name'] == path.parent.name and isinstance(meta['description'],str) and meta['description'].strip()
     with zipfile.ZipFile(output,'x',zipfile.ZIP_DEFLATED) as archive:
-        for path in paths: archive.write(path, f"chatgpt-ceo/{path.relative_to(ROOT)}")
-        archive.writestr('chatgpt-ceo/mcp.json',json.dumps(settings,indent=2)+'\n')
+        for path in paths: archive.write(path, f"{package_root}/{path.relative_to(ROOT)}")
+        archive.writestr(f'{package_root}/mcp.json',json.dumps(settings,indent=2)+'\n')
     output.chmod(0o600)
     with zipfile.ZipFile(output) as archive:
         assert archive.testzip() is None and len(archive.namelist()) == len(FILES)+1
-        for path in paths: assert archive.read(f'chatgpt-ceo/{path.relative_to(ROOT)}') == path.read_bytes()
+        for path in paths: assert archive.read(f'{package_root}/{path.relative_to(ROOT)}') == path.read_bytes()
     return output
 
 if __name__ == '__main__':

@@ -73,10 +73,10 @@ retention policy before long-term growth becomes material.
 ## Private plugin installation
 
 The public source contains generic skills and no live endpoint. Prepare a private
-portable `mcp.json` with the single `ceo-configuration` streamable-http server,
+portable `mcp.json` with the single `ceo` streamable-http server,
 verified HTTPS URL, and per-server `extensions.com.openai.auth` OAuth configuration.
 Use the provider's actual client mode/ID/endpoints; no client secret in the file.
-Run `python scripts/package.py --connection /private/mcp.json --output /private/chatgpt-ceo.zip`.
+Run `python scripts/package.py --connection /private/mcp.json --output /private/ceo.zip`.
 The generator copies the canonical skills and validates contained links. It does
 not maintain another editable skill tree or perform endpoint substitution at host
 runtime. Keep the generated package private. The user installs and authenticates

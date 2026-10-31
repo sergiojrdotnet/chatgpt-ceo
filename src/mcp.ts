@@ -31,7 +31,7 @@ export function mcp(store: Store) {
         expiresAt: (authInfo.expiresAt ?? 0) * 1000,
       };
       const server = new McpServer(
-        { name: "chatgpt-ceo", version: "0.1.0" },
+        { name: "ceo", version: "0.1.0" },
         {
           instructions:
             "Read operation context then needed subject tools at the same revision. Configuration is not operational authority. Missing, partial, stale or conflicting reads block dependent decisions. Admin writes require review; checkpoint acknowledgement is not dispatch or exactly-once execution.",
