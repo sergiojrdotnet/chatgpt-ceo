@@ -213,6 +213,7 @@ export const listEventsSchema = z
     to: timestamp.optional(),
     limit: z.number().int().min(1).max(100).default(50),
     cursor: z.string().min(1).max(1024).optional(),
+    order: z.enum(["asc", "desc"]).optional(),
   })
   .strict()
   .superRefine((f, ctx) => {

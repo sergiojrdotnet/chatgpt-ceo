@@ -1,4 +1,10 @@
 import {
+  historyUri,
+  historyMime,
+  historyHtml,
+  historyMeta,
+} from "./history-ui.ts";
+import {
   McpServer,
   createMcpHandler,
   ProtocolError,
@@ -160,6 +166,68 @@ export function mcp(store: Store) {
           annotations: read,
         },
         (a) => run("read", () => store.listEvents(a)),
+      );
+      server.registerResource(
+        "coordination-history",
+        historyUri,
+        {
+          mimeType: historyMime,
+          description: "Read-only coordination history view",
+        },
+        () => {
+          authorize(p, "read");
+          return {
+            contents: [
+              {
+                uri: historyUri,
+                mimeType: historyMime,
+                text: historyHtml,
+                _meta: historyMeta,
+              },
+            ],
+          };
+        },
+      );
+      server.registerTool(
+        "show_coordination_history",
+        {
+          title: "Coordination history",
+          description:
+            "Show a read-only history dashboard inside ChatGPT. Fetches bounded pages through the authenticated host; no operations or live task state.",
+          inputSchema: z
+            .object({
+              issueId: listEventsSchema.shape.issueId,
+              scopeType: listEventsSchema.shape.scopeType,
+              scopeId: listEventsSchema.shape.scopeId,
+              order: listEventsSchema.shape.order,
+            })
+            .strict()
+            .superRefine((a, ctx) => {
+              const parsed = listEventsSchema.safeParse(a);
+              if (!parsed.success)
+                for (const issue of parsed.error.issues)
+                  ctx.addIssue({
+                    code: "custom",
+                    message: issue.message,
+                    path: issue.path,
+                  });
+            }),
+          annotations: read,
+          _meta: { ui: { resourceUri: historyUri } },
+        },
+        (a) => {
+          const checked = run("read", () => ({}));
+          if ("isError" in checked) return checked;
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: "Coordination history view ready.",
+              },
+            ],
+            _meta: { historyFilters: { ...a, order: a.order ?? "desc" } },
+          };
+        },
       );
       server.registerTool(
         "append_coordination_event",

@@ -39,6 +39,7 @@ that guidance requires it. Reading configuration grants no business permission.
 | `validate_configuration` | `configuration` | Admin validation/review digest |
 | `update_configuration` | `configuration`, `expectedRevision`, `reviewDigest`, `requestId` | Admin write |
 | `list_coordination_events` | Optional issue/scope/action/time filters, `limit`, `cursor` | Read bounded immutable history |
+| `show_coordination_history` | Optional issue/scope filters and order | Read-only embedded ChatGPT view |
 | `append_coordination_event` | `event`, `expectedRevision`, `requestId` | Separate event write |
 
 Follow the [configuration contract](references/configuration.md) for consistent
@@ -53,6 +54,7 @@ No company IDs, endpoints, credentials or business values belong in public sourc
 ```sh
 npm ci
 python -m pip install -r requirements-dev.txt
+npx playwright install --with-deps chromium
 npm run check
 git diff --check
 ```
@@ -69,3 +71,36 @@ connects and authenticates the MCP in ChatGPT; the installed CEO plugin contains
 both its tools and the skills maintained here. Its setup skill configures policy
 through the authenticated MCP. Keep account-specific plugin metadata outside this
 repository and verify skill and tool behavior together after an update.
+
+## Embedded history
+
+`show_coordination_history` opens the same server's `ui://ceo/coordination-history/v1.html`
+resource (`text/html;profile=mcp-app`). Only this render tool has `_meta.ui.resourceUri`;
+`list_coordination_events` remains a standalone data tool. The render result exposes
+only a short acknowledgement to the model, with initial filters in `_meta`.
+The view initializes the MCP Apps bridge, then calls the existing data tool through
+the authenticated host. Every tool/resource request requires current read authority.
+No frontend credentials, private URLs, external assets, direct fetches, polling,
+mutation controls or installation manifests are involved.
+
+The UI holds and renders one page of at most 50 events. Next preserves snapshot and
+filters; First page, Refresh and Apply filters begin a fresh snapshot. Recorded
+insertion chronology supports both directions; observed timestamps remain visible.
+Evidence and identifiers are escaped text, with navigation explicitly unavailable
+because the API does not establish verified canonical URLs. Corrections and release
+correlation identifiers remain visible without rewriting original events.
+
+Source is in `ui/`, embedded with hash-based CSP by `src/history-ui.ts` and copied
+into the server image. Bump the resource URI when incompatible UI changes require
+cache invalidation. The implementation uses SDK v2.4.0 `registerResource`, without
+legacy SDK imports. Controlling documentation: [OpenAI MCP Apps UI](https://developers.openai.com/plugins/build/chatgpt-ui),
+[OpenAI Extensions](https://developers.openai.com/plugins/build/extensions), and the
+[MCP Apps protocol](https://github.com/modelcontextprotocol/ext-apps/blob/main/specification/2026-01-26/apps.mdx).
+No optional sidebar or plugin settings extension is needed for this inline view.
+
+Browser tests use a local synthetic bridge and isolated 1,205-event database; they
+produce light, dark/mobile and empty-state screenshots under `/tmp/ceo-ui-evidence`.
+They are not actual ChatGPT embedding evidence. After reviewed deployment and tool
+refresh, acceptance still requires the existing installed CEO plugin to render the
+resource in ChatGPT, authenticate page requests, show empty/history/filter/error
+states and preserve manual-only navigation. Core ALU-68 acceptance remains a dependency.

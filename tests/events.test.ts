@@ -441,3 +441,78 @@ test("interrupted schema initialization rolls back and can restart without reset
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("1205-event snapshots traverse both directions without duplicates or misses during inserts", () => {
+  const s = setup();
+  try {
+    const ids: string[] = [];
+    const issueOne: string[] = [];
+    for (let i = 0; i < 1205; i++)
+      ids.push(
+        s.appendEvent(
+          "writer",
+          args(`bulk-${i}`, {
+            ...event,
+            result: `Synthetic ${i}`,
+            issueId: i % 2 ? "SYN-2" : "SYN-1",
+            scope: { type: "issue", id: i % 2 ? "SYN-2" : "SYN-1" },
+          }),
+        ).event.eventId,
+      );
+    issueOne.push(...ids.filter((_, i) => i % 2 === 0));
+    for (const order of ["asc", "desc"] as const) {
+      for (const issueId of [undefined, "SYN-1"]) {
+        const filters = {
+          order,
+          issueId,
+          scopeType: "issue",
+          action: "delegation",
+          from: event.observedAt,
+          to: event.observedAt,
+          limit: 37,
+        };
+        const seen: string[] = [];
+        const wanted = [...(issueId ? issueOne : ids)];
+        let current = s.listEvents(filters);
+        const inserted = s.appendEvent(
+          "writer",
+          args(`concurrent-${order}-${issueId}`),
+        ).event.eventId;
+        ids.push(inserted);
+        issueOne.push(inserted);
+        let pages = 0;
+        while (true) {
+          assert.ok(current.events.length <= 37);
+          assert.ok(Buffer.byteLength(JSON.stringify(current)) < 50_000);
+          seen.push(...current.events.map((e) => e.eventId));
+          pages++;
+          if (!current.hasMore) break;
+          assert.ok(current.nextCursor);
+          assert.throws(
+            () =>
+              s.listEvents({
+                ...filters,
+                order: order === "asc" ? "desc" : "asc",
+                cursor: current.nextCursor,
+              }),
+            /INVALID_CURSOR/,
+          );
+          current = s.listEvents({ ...filters, cursor: current.nextCursor });
+        }
+        assert.deepEqual(seen, order === "desc" ? wanted.reverse() : wanted);
+        assert.equal(new Set(seen).size, seen.length);
+        assert.ok(pages > 16);
+      }
+    }
+    for (const cursor of [
+      "<script>alert(1)</script>",
+      Buffer.from(
+        JSON.stringify({ v: 1, after: 0, through: 999999, filterDigest: "x" }),
+      ).toString("base64url"),
+      "a".repeat(1025),
+    ])
+      assert.throws(() => s.listEvents({ cursor }));
+  } finally {
+    s.close();
+  }
+});

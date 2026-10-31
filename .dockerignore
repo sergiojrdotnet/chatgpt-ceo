@@ -6,3 +6,6 @@
 !src/**
 !references
 !references/policy.schema.json
+
+!ui
+!ui/**
