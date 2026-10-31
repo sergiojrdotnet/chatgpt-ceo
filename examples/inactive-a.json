@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "profileId": "synthetic-profile-a",
+  "revision": 1,
+  "effectiveAt": "2025-01-01T00:00:00Z",
+  "active": false,
+  "fixtureOnly": true,
+  "executionEnabled": false,
+  "ownerRef": "synthetic-owner-a",
+  "timezone": "Etc/UTC",
+  "bindings": {
+    "linear": {
+      "workspaceRef": "synthetic-workspace-a",
+      "teamRef": "synthetic-team-a"
+    },
+    "github": {
+      "repositories": [
+        "synthetic-owner-a/example"
+      ]
+    },
+    "erpnext": {
+      "connectionRef": "synthetic-erp-a"
+    }
+  },
+  "capacity": {
+    "preferredMin": 1,
+    "preferredMax": 3,
+    "activeMax": 4,
+    "urgentIncidentMax": 5
+  },
+  "selection": {
+    "administrativeHours": {
+      "start": "10:00",
+      "end": "16:00"
+    },
+    "lowActivityPreference": true
+  },
+  "release": {
+    "restrictedWindows": [
+      {
+        "weekdays": [
+          2,
+          4
+        ],
+        "start": "12:00",
+        "end": "13:00"
+      }
+    ],
+    "observationMinimumMinutes": 17
+  },
+  "agents": [
+    {
+      "id": "synthetic-builder-a",
+      "name": "Synthetic builder A",
+      "description": "Choose for bounded code changes requiring a checkout and local tests.",
+      "model": "synthetic-model-a",
+      "effort": "medium",
+      "environment": "synthetic-cloud-a",
+      "instructions": "Use the connected tools available to this session. Verify source context and report evidence gaps; keep work within the issue scope."
+    }
+  ]
+}

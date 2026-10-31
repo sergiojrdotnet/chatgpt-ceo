@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "profileId": "synthetic-profile-b",
+  "revision": 1,
+  "effectiveAt": "2025-01-01T00:00:00Z",
+  "active": false,
+  "fixtureOnly": true,
+  "executionEnabled": false,
+  "ownerRef": "synthetic-owner-b",
+  "timezone": "Etc/UTC",
+  "bindings": {
+    "linear": {
+      "workspaceRef": "synthetic-workspace-b",
+      "teamRef": "synthetic-team-b"
+    },
+    "github": {
+      "repositories": [
+        "synthetic-owner-b/example"
+      ]
+    },
+    "erpnext": {
+      "connectionRef": "synthetic-erp-b"
+    }
+  },
+  "capacity": {
+    "preferredMin": 1,
+    "preferredMax": 3,
+    "activeMax": 6,
+    "urgentIncidentMax": 7
+  },
+  "selection": {
+    "administrativeHours": {
+      "start": "10:00",
+      "end": "16:00"
+    },
+    "lowActivityPreference": true
+  },
+  "release": {
+    "restrictedWindows": [
+      {
+        "weekdays": [
+          2,
+          4
+        ],
+        "start": "12:00",
+        "end": "13:00"
+      }
+    ],
+    "observationMinimumMinutes": 17
+  },
+  "agents": [
+    {
+      "id": "synthetic-builder-b",
+      "name": "Synthetic builder B",
+      "description": "Choose for bounded code changes requiring a checkout and local tests.",
+      "model": "synthetic-model-b",
+      "effort": "medium",
+      "environment": "synthetic-cloud-b",
+      "instructions": "Use the connected tools available to this session. Verify source context and report evidence gaps; keep work within the issue scope."
+    },
+    {
+      "id": "synthetic-records",
+      "name": "Synthetic records assistant",
+      "description": "Choose for bounded record preparation or connected-tool research without a code checkout.",
+      "model": "synthetic-record-model",
+      "effort": "low",
+      "instructions": "Use the connected tools available to this session. Verify source context and report evidence gaps; keep work within the issue scope."
+    },
+    {
+      "id": "synthetic-observer",
+      "name": "Synthetic observer",
+      "description": "Choose for authorized release observation needing operational telemetry access.",
+      "model": "synthetic-observation-model",
+      "effort": "high",
+      "environment": "synthetic-observation-cloud",
+      "instructions": "Use the connected tools available to this session. Verify source context and report evidence gaps; keep work within the issue scope."
+    }
+  ]
+}

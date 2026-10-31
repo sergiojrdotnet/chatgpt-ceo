@@ -1,0 +1,301 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": 1,
+      "type": "integer"
+    },
+    "profileId": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "effectiveAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "active": {
+      "type": "boolean"
+    },
+    "fixtureOnly": {
+      "type": "boolean"
+    },
+    "executionEnabled": {
+      "type": "boolean"
+    },
+    "ownerRef": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "timezone": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "bindings": {
+      "type": "object",
+      "properties": {
+        "linear": {
+          "type": "object",
+          "properties": {
+            "workspaceRef": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            },
+            "teamRef": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            }
+          },
+          "required": [
+            "workspaceRef",
+            "teamRef"
+          ],
+          "additionalProperties": false
+        },
+        "github": {
+          "type": "object",
+          "properties": {
+            "repositories": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            }
+          },
+          "required": [
+            "repositories"
+          ],
+          "additionalProperties": false
+        },
+        "erpnext": {
+          "type": "object",
+          "properties": {
+            "connectionRef": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            }
+          },
+          "required": [
+            "connectionRef"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "linear",
+        "github",
+        "erpnext"
+      ],
+      "additionalProperties": false
+    },
+    "capacity": {
+      "type": "object",
+      "properties": {
+        "preferredMin": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "preferredMax": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "activeMax": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "urgentIncidentMax": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "preferredMin",
+        "preferredMax",
+        "activeMax",
+        "urgentIncidentMax"
+      ],
+      "additionalProperties": false
+    },
+    "selection": {
+      "type": "object",
+      "properties": {
+        "administrativeHours": {
+          "type": "object",
+          "properties": {
+            "start": {
+              "type": "string",
+              "pattern": "^(?:[01][0-9]|2[0-3]):[0-5][0-9]$",
+              "minLength": 5,
+              "maxLength": 5
+            },
+            "end": {
+              "type": "string",
+              "pattern": "^(?:[01][0-9]|2[0-3]):[0-5][0-9]$",
+              "minLength": 5,
+              "maxLength": 5
+            }
+          },
+          "required": [
+            "start",
+            "end"
+          ],
+          "additionalProperties": false
+        },
+        "lowActivityPreference": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "administrativeHours",
+        "lowActivityPreference"
+      ],
+      "additionalProperties": false
+    },
+    "release": {
+      "type": "object",
+      "properties": {
+        "restrictedWindows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "weekdays": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 7
+                }
+              },
+              "start": {
+                "type": "string",
+                "pattern": "^(?:[01][0-9]|2[0-3]):[0-5][0-9]$",
+                "minLength": 5,
+                "maxLength": 5
+              },
+              "end": {
+                "type": "string",
+                "pattern": "^(?:[01][0-9]|2[0-3]):[0-5][0-9]$",
+                "minLength": 5,
+                "maxLength": 5
+              }
+            },
+            "required": [
+              "weekdays",
+              "start",
+              "end"
+            ],
+            "additionalProperties": false
+          },
+          "uniqueItems": true
+        },
+        "observationMinimumMinutes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "restrictedWindows",
+        "observationMinimumMinutes"
+      ],
+      "additionalProperties": false
+    },
+    "agents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$(?![\\s\\S])",
+            "maxLength": 64,
+            "description": "Stable private identifier; unique across this list."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "maxLength": 80
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "maxLength": 500,
+            "description": "Brief human-readable guidance describing when Delegate should choose this template."
+          },
+          "model": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "effort": {
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max",
+              "ultra"
+            ]
+          },
+          "environment": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "description": "Optional exact private specialized-environment ID. Absence requires verified explicit general-cloud execution, never implicit desktop fallback."
+          },
+          "instructions": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "description": "Executor startup context and custom guidance, forwarded with the issue-first handoff. Not selection criteria, access evidence or additional authority."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "model",
+          "effort",
+          "instructions"
+        ],
+        "additionalProperties": false
+      },
+      "description": "Session execution templates selected as complete entries by Delegate using their descriptions."
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "profileId",
+    "revision",
+    "effectiveAt",
+    "active",
+    "fixtureOnly",
+    "executionEnabled",
+    "ownerRef",
+    "timezone",
+    "bindings",
+    "capacity",
+    "selection",
+    "release",
+    "agents"
+  ],
+  "additionalProperties": false
+}
