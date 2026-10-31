@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "profileId": "synthetic-profile-a",
+  "revision": 1,
+  "effectiveAt": "2025-01-01T00:00:00Z",
+  "active": false,
+  "fixtureOnly": true,
+  "executionEnabled": false,
+  "ownerRef": "synthetic-owner-a",
+  "agreement": {
+    "reference": "synthetic-agreement-a",
+    "revision": "example-1"
+  },
+  "timezone": "Etc/UTC",
+  "bindings": {
+    "linear": {
+      "workspaceRef": "synthetic-workspace-a",
+      "teamRef": "synthetic-team-a"
+    },
+    "github": {
+      "repositories": [
+        "synthetic-owner-a/example"
+      ]
+    },
+    "erpnext": {
+      "connectionRef": "synthetic-erp-a"
+    }
+  },
+  "routing": {
+    "general": {
+      "environmentConfigId": "synthetic-cloud-a"
+    }
+  },
+  "models": {
+    "analysis": {
+      "model": "synthetic-model-a",
+      "effort": "medium"
+    }
+  },
+  "capacity": {
+    "preferredMin": 1,
+    "preferredMax": 3,
+    "activeMax": 4,
+    "urgentIncidentMax": 5
+  },
+  "selection": {
+    "administrativeHours": {
+      "start": "10:00",
+      "end": "16:00"
+    },
+    "lowSchoolActivityPreference": true
+  },
+  "release": {
+    "restrictedWindows": [
+      {
+        "weekdays": [
+          2,
+          4
+        ],
+        "start": "12:00",
+        "end": "13:00"
+      }
+    ],
+    "observationMinimumMinutes": 17
+  }
+}
