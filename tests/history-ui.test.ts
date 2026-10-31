@@ -11,12 +11,14 @@ import config from "../examples/inactive-a.json" with { type: "json" };
 test("rendered MCP bridge: bounded 1205-event traversal, keyboard, narrow/dark, safe text and failure states", async () => {
   const store = new Store(":memory:");
   store.update("admin", "setup", 0, digest(config), config);
-  for (let i = 0; i < 1205; i++)
-    store.appendEvent("writer", {
+  let original = "";
+  for (let i = 0; i < 1205; i++) {
+    const saved = store.appendEvent("writer", {
       expectedRevision: 1,
       requestId: `ui-${i}`,
       event: {
-        action: "execution",
+        action: i === 1204 ? "correction" : "execution",
+        ...(i === 1204 ? { correctsEventId: original } : {}),
         scope: { type: "issue", id: "SYN-1" },
         issueId: "SYN-1",
         reason: '<img src=x onerror="window.pwned=true"> Synthetic decision',
@@ -29,17 +31,20 @@ test("rendered MCP bridge: bounded 1205-event traversal, keyboard, narrow/dark, 
         correlationId: "synthetic-batch",
       },
     });
+    if (i === 0) original = saved.event.eventId;
+  }
   const server = createServer((req, res) => {
     res.setHeader("Content-Type", "text/html");
     if (req.url === "/view") return res.end(historyHtml);
     res.end(`<!doctype html><iframe title="History" src="/view" style="border:0;width:100%;height:800px"></iframe><script>
-    window.calls=[]; window.mode='ok'; window.delay=0;
+    window.calls=[]; window.replies=[];window.delivered=0; window.mode='ok'; window.delay=0;
     addEventListener('message', async (event) => {
       if(event.source !== document.querySelector('iframe').contentWindow) return;
       const m=event.data; const reply=(result)=>event.source.postMessage({jsonrpc:'2.0',id:m.id,result},'*');
       if(m.method==='ui/initialize') reply({protocolVersion:'2026-01-26',hostCapabilities:{serverTools:{}},hostContext:{theme:'light'}});
       if(m.method==='ui/notifications/initialized') event.source.postMessage({jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{_meta:{historyFilters:{order:'desc'}}}},'*');
-      if(m.method==='tools/call') { window.calls.push(m.params); const result=await window.fixtureCall(m.params,window.mode); setTimeout(()=>reply(result),window.delay); }
+      if(!m.method && m.id !== undefined) window.replies.push(m.id);
+      if(m.method==='tools/call') { window.calls.push(m.params); event.source.postMessage({jsonrpc:'2.0',id:m.id,method:window.mode==='teardown'?'ui/resource-teardown':'ping',params:{}},'*'); const result=await window.fixtureCall(m.params,window.mode); setTimeout(()=>{reply(result);window.delivered++},window.delay); }
     });</script>`);
   });
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
@@ -105,6 +110,14 @@ test("rendered MCP bridge: bounded 1205-event traversal, keyboard, narrow/dark, 
     assert.ok(
       (await ui.locator("details").first().getAttribute("open")) !== null,
     );
+    assert.ok(
+      (await ui.locator("details").first().textContent())?.includes(original),
+    );
+    assert.ok(
+      (await ui.locator("details").first().textContent())?.includes(
+        "synthetic-batch",
+      ),
+    );
     mkdirSync("/tmp/ceo-ui-evidence", { recursive: true });
     await page.screenshot({ path: "/tmp/ceo-ui-evidence/light.png" });
     const seen: string[] = [];
@@ -127,6 +140,7 @@ test("rendered MCP bridge: bounded 1205-event traversal, keyboard, narrow/dark, 
       true,
     );
     assert.equal(await page.evaluate("window.calls.length"), 25);
+    assert.equal(await page.evaluate("window.replies.length"), 25);
     await ui.getByRole("button", { name: "First page" }).click();
     await ui.locator("article").first().waitFor();
     await page.setViewportSize({ width: 375, height: 900 });
@@ -183,6 +197,22 @@ test("rendered MCP bridge: bounded 1205-event traversal, keyboard, narrow/dark, 
         true,
       );
     }
+    await page.evaluate(
+      "window.mode='teardown';window.delay=100;window.delivered=0",
+    );
+    await ui.getByRole("button", { name: "Refresh", exact: true }).click();
+    await ui
+      .locator("#status")
+      .filter({ hasText: "History view closed." })
+      .waitFor();
+    await page.waitForFunction("window.delivered===1");
+    assert.equal(await ui.locator("article").count(), 0);
+    assert.equal(
+      await ui
+        .getByRole("button", { name: "Refresh", exact: true })
+        .isDisabled(),
+      true,
+    );
     assert.deepEqual(errors, []);
     await page.goto(`http://127.0.0.1:${address.port}/view`);
     assert.ok(

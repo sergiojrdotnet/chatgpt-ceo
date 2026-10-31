@@ -4,6 +4,7 @@
   const form = $("filters"),
     events = $("events"),
     status = $("status");
+  let disposed = false;
   let ready = false,
     busy = false,
     page = 1,
@@ -141,10 +142,11 @@
         name: "list_coordination_events",
         arguments: { ...filters, ...(cursor ? { cursor } : {}) },
       });
+      if (disposed) return;
       page = targetPage;
       render(result);
     } catch (error) {
-      failure(error);
+      if (!disposed) failure(error);
     } finally {
       busy = false;
       controls();
@@ -168,7 +170,11 @@
   window.addEventListener("message", (event) => {
     if (event.source !== window.parent || event.data?.jsonrpc !== "2.0") return;
     const message = event.data;
-    if (pending.has(message.id)) {
+    if (
+      !message.method &&
+      ("result" in message || "error" in message) &&
+      pending.has(message.id)
+    ) {
       const call = pending.get(message.id);
       clearTimeout(call.timer);
       pending.delete(message.id);
@@ -177,6 +183,7 @@
       else call.resolve(message.result);
       return;
     }
+    if (disposed) return;
     if (message.method === "ui/notifications/host-context-changed")
       theme(message.params);
     if (message.method === "ui/notifications/tool-result" && initial) {
@@ -192,8 +199,15 @@
     if (message.method === "ping" && message.id !== undefined)
       send({ id: message.id, result: {} });
     if (message.method === "ui/resource-teardown" && message.id !== undefined) {
+      disposed = true;
       events.replaceChildren();
       ready = false;
+      status.textContent = "History view closed.";
+      for (const call of pending.values()) {
+        clearTimeout(call.timer);
+        call.reject(new Error("CLOSED"));
+      }
+      pending.clear();
       controls();
       send({ id: message.id, result: {} });
     }
@@ -209,6 +223,7 @@
     appCapabilities: { availableDisplayModes: ["inline"] },
   })
     .then((result) => {
+      if (disposed) return;
       if (
         result?.protocolVersion !== "2026-01-26" ||
         !result?.hostCapabilities?.serverTools
@@ -222,7 +237,7 @@
       send({ method: "ui/notifications/initialized", params: {} });
     })
     .catch((error) => {
-      failure(error);
+      if (!disposed) failure(error);
       controls();
     });
 })();
