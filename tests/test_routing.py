@@ -11,6 +11,19 @@ class Routing(unittest.TestCase):
         value['routing']['general'] = {'kind': 'generalCloud'}
         return value
 
+    def test_private_purpose_bindings_use_exact_current_catalog(self):
+        value = fixture('b')
+        for role, capability in (('development', 'checkout'),
+                                 ('operations', 'release'), ('pilot', 'device')):
+            binding = value['routing'][role]['environmentConfigId']
+            observed = p.RouteObservation('specialized', binding, (capability,), True)
+            self.assertEqual(p.resolve_route(value, role, [observed], [capability]), observed)
+            with self.assertRaisesRegex(p.PolicyError, 'ROUTE_UNAVAILABLE'):
+                p.resolve_route(value, role, [])
+            with self.assertRaisesRegex(p.PolicyError, 'CAPABILITIES_MISSING'):
+                p.resolve_route(value, role, [observed], ['missing-capability'])
+        self.assertEqual(value['routing']['general'], {'kind': 'generalCloud'})
+
     def test_no_specialized_binding_is_valid_but_unproven(self):
         value = self.general()
         p.validate(value)

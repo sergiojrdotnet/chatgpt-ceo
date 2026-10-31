@@ -27,6 +27,18 @@
     }
   },
   "routing": {
+    "development": {
+      "kind": "specialized",
+      "environmentConfigId": "synthetic-development-b"
+    },
+    "operations": {
+      "kind": "specialized",
+      "environmentConfigId": "synthetic-operations-b"
+    },
+    "pilot": {
+      "kind": "specialized",
+      "environmentConfigId": "synthetic-pilot-b"
+    },
     "general": {
       "kind": "generalCloud"
     }

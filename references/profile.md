@@ -49,6 +49,16 @@ services, architecture/major UX decisions, production tests or resumed paused wo
 Fixture-only or execution-disabled profiles permit isolated simulation/analysis
 only. The helper rejects ALL live dispatch, including permissive profiles.
 
+The private `routing` map is the purpose-to-environment configuration used by the
+skills: `development` for code work, `operations` for operational/release work,
+`pilot` for an explicitly targeted pilot, and `general` for connected-tool work.
+Keep one intended binding per purpose; do not create a second environment registry.
+Omit a purpose that is not offered; dependent dispatch then stops with a missing
+route rather than selecting another environment. Names/IDs come from private setup.
+Capabilities and current access are verified from the fresh catalog, not inferred
+from these purpose labels or a configured ID. Administration, Linear and research
+can use `generalCloud` without a specialized binding when that route is supported.
+
 Each optional route is either
 `{"kind":"specialized","environmentConfigId":"<private binding>"}` or
 `{"kind":"generalCloud"}`. No environment ID is required for general-cloud work.
