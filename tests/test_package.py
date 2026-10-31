@@ -25,7 +25,7 @@ class Package(unittest.TestCase):
                     self.assertTrue(all(b'synthetic-private-canary-do-not-package' not in archive.read(n)
                                         for n in archive.namelist()))
                     archive.extractall(folder)
-                path = Path(folder) / 'chatgpt-ceo-plugin/skills/ceo-coordinate/scripts/policy.py'
+                path = Path(folder) / 'chatgpt-ceo/skills/ceo-coordinate/scripts/policy.py'
                 spec = importlib.util.spec_from_file_location('policy', path)
                 module = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(module)
