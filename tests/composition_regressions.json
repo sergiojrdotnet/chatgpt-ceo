@@ -24,7 +24,7 @@
       "Authoritative read now confirms In Progress. Contrast a merged issue already Awaiting Release and an existing observation issue In Validation."
     ],
     "expected": [
-      "Establish In Progress and verify readback before dependent execution; uncertain transition does not pass",
+      "Establish In Progress and verify readback before dependent release mutations; uncertainty does not pass. Already-authorized read-only diagnostics may continue within scope with truthful bookkeeping and later reconciliation.",
       "Preserve and verify evidenced delivery phase for merged/observing issues, record owner and checkpoint rather than regress phase"
     ]
   },
@@ -88,17 +88,17 @@
     ]
   },
   {
-    "name": "technical-release-skill-retained",
+    "name": "configured-technical-release-instructions",
     "skills": [
       "conduct-release"
     ],
     "steps": [
-      "An authorized monorepo release has repository instructions pointing to its existing technical release skill with app-specific version/publication rules. The plugin Conduct Release is also available.",
-      "The repository technical release skill cannot be discovered or loaded for a later publication."
+      "Configured agent instructions require a repository release skill for app-specific versioning/publication. Contrast another project with an approved technical runbook and no release skill.",
+      "Required technical guidance cannot be accessed for a later publication."
     ],
     "expected": [
-      "Retain and invoke repository technical skill for versioning/publication mechanics; plugin coordinates authority/evidence/Linear/monitoring without duplicating rules",
-      "Report the missing technical-skill gap before dependent publication; do not invent rules or remove product skill"
+      "Follow the applicable agent/project technical instructions in both cases; invoke a repository skill when configured, not as a universal plugin requirement.",
+      "Missing required technical guidance blocks dependent publication; do not invent mechanics or remove existing technical procedures."
     ]
   },
   {
@@ -108,11 +108,42 @@
     ],
     "steps": [
       "A standalone Todo issue authorizes ten minutes of observation. Profile, scope, duration and access are valid; only this skill and its profile reference are loaded. State write times out and readback is unavailable. May source discovery or baseline start?",
-      "Readback confirms In Progress. Contrast release observation already In Validation, pre-publication baseline Awaiting Release and consultation/synthetic dry run."
+      "Readback confirms In Progress. Contrast release observation already In Validation, pre-publication baseline Awaiting Release and consultation/synthetic dry run.",
+      "The observer proposes a restart or configuration mutation while the status write is unresolved. Does the read-only exception authorize recovery?"
     ],
     "expected": [
-      "Verify In Progress before live discovery/baseline/observation; uncertainty stops dependent monitoring",
-      "Preserve evidenced delivery phases; consultation and synthetic dry runs start no live monitoring or status mutation"
+      "Attempt and verify In Progress; if bookkeeping fails or is uncertain, already-authorized read-only collection may continue. Report the gap, never claim success, and reconcile actual state before retrying the uncertain write.",
+      "Preserve evidenced delivery phases; consultation and synthetic dry runs start no live monitoring or status mutation",
+      "No expanded authority for recovery or mutations; preserve ordinary approval and execution gates."
+    ]
+  },
+  {
+    "name": "recovery-choice",
+    "skills": [
+      "conduct-release"
+    ],
+    "steps": [
+      "A regression can be safely corrected in two minutes; rollback takes ten minutes and cannot undo the migration. Compare impact and confidence.",
+      "Contrast an uncertain correction with a verified, faster rollback. A tightly coupled change cannot be split safely."
+    ],
+    "expected": [
+      "Prefer the safe faster corrective deploy, preserving technical release procedure and authorization.",
+      "Choose rollback when better; small incremental releases are a preference, not an arbitrary size or splitting gate."
+    ]
+  },
+  {
+    "name": "configured-review-policy",
+    "skills": [
+      "prepare-code-change",
+      "conduct-release"
+    ],
+    "steps": [
+      "The selected agent and repository specify an independent reviewer and CI requirements, using a non-default provider and merge method.",
+      "Review or CI is still pending; the executor proposes publication because the plugin names no global provider."
+    ],
+    "expected": [
+      "Follow the applicable configured review/CI/merge policy and resolve conflicts; do not invent global provider or squash requirements.",
+      "Required exact-version review/CI still gate publication; configurability does not waive those requirements."
     ]
   }
 ]

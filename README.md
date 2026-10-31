@@ -43,9 +43,10 @@ currently defaults to desktop. Fresh availability/access/capability checks apply
 to the whole selected template, without silent substitution.
 
 Technical code/build/test/domain/architecture/runbook/safety facts remain in the
-product repository. Its technical release skill is retained: Conduct Release
-invokes it for application-specific versioning and publication while coordinating
-authority, evidence, state and monitoring. For preparation/monitoring process
+product repository. Conduct Release follows technical publication instructions
+from the configured agent or project while coordinating authority, evidence, state
+and monitoring. Agent instructions may require a repository release skill where
+one applies; the plugin does not impose one universally. For preparation/monitoring process
 migration, existing procedures remain until the replacement is discovered and
 loaded at the expected version in an actual executor.
 

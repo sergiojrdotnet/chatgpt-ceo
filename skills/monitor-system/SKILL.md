@@ -18,9 +18,11 @@ it does not authorize remediation, device actions or schedules.
    a shorter request cannot satisfy it. Baseline-only and dry-run requests do not
    start a timed observation period or live calls merely by loading this skill.
    For authorized substantive monitoring on a standalone issue, establish In
-   Progress and verify readback before live source discovery, baseline collection
-   or observation. Resolve failed/uncertain state writes or readback before those
-   dependent actions. For release observation, preserve and verify an evidenced
+   Progress and verify readback. If that write or readback fails or is uncertain,
+   already-authorized read-only discovery, baseline collection and observation
+   may continue within their existing scope. Report the bookkeeping gap without
+   claiming a state change; reconcile actual state later before retrying an
+   uncertain write. This exception grants no mutation or recovery authority. For release observation, preserve and verify an evidenced
    In Validation phase instead of regressing it; likewise retain an evidenced
    Awaiting Release phase for a pre-publication baseline. Record active owner and
    next checkpoint. Consultation and synthetic dry runs do not start execution
