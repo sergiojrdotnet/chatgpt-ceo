@@ -1,4 +1,4 @@
-# ChatGPT CEO Plugin
+# ChatGPT CEO
 
 A work-in-progress plugin for coordinating work across Linear, GitHub, and ERPNext.
 
@@ -36,7 +36,7 @@ Use Python 3.12+ with system IANA timezone data, then:
 ```sh
 python -m pip install -r requirements-dev.txt
 python -m unittest discover -s tests -v
-python tests/check_package.py /tmp/chatgpt-ceo-plugin.zip
+python tests/check_package.py /tmp/chatgpt-ceo.zip
 ```
 
 The last command checks the portable manifest, parses skill YAML, checks local
