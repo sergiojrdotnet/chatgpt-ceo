@@ -49,7 +49,7 @@ Use Todo → In Progress → In Validation → Done with real readback and accep
 review states apply only when real review is needed. Missing receipts, mappings,
 access or decisions block dependent work only. Administrative hours are a preference,
 not a ban. Continue independent authorized preparation without guessing inputs.
-No readback, unresolved review or uncertain effect prevents Done. A submitted
+Missing readback, unresolved review, or an uncertain effect each prevents Done. A submitted
 accounting record is not evidence of bank settlement.
 
 Issue comments use an evidence allowlist: outcome category, action category,
