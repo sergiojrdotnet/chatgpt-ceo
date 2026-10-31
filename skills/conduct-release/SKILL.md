@@ -10,7 +10,7 @@ current Linear Awaiting Release work, approved publication scope and destination
 Outcome: evidenced per-issue publication and implementation-validation handoff,
 or explicit partial, failed, blocked or uncertain results.
 
-Configuration: call `get_operation_context`, then `get_release_policy`,
+Configuration: call `get_operation_context`, then
 `get_selection_policy` and `get_agents` as needed at the same revision.
 Follow the [configuration contract](../../references/configuration.md).
 
@@ -40,7 +40,10 @@ to the coordinator before dependent mutations. The coordinator resumes steps 6â€
    dependencies/conflicts and order, compatibility/data/configuration changes,
    backup prerequisites, verification and recovery options. Compare rollout,
    functional validation, required observation and reasoned recovery margin against
-   restricted windows and actual traffic; no invented duration constants.
+   applicable project/repository restrictions and actual traffic. Take observation
+   requirements and any authorized exceptions from the task instructions and
+   technical procedure; CEO configuration defines no release windows or minimum
+   duration. Do not invent defaults or require observation when explicitly waived.
    Use [monitor-system](../monitor-system/SKILL.md) for fresh baseline evidence.
    Prefer small releases when they reduce impact and remain independently testable.
    Append per-issue `release-plan` events with a shared `correlationId`, reason,

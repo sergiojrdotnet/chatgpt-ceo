@@ -34,7 +34,6 @@ that guidance requires it. Reading configuration grants no business permission.
 | `get_operation_context` | Optional `expectedRevision` | Read context/bindings and revision |
 | `get_agents` | `expectedRevision` | Read complete templates |
 | `get_selection_policy` | `expectedRevision` | Read selection/capacity |
-| `get_release_policy` | `expectedRevision` | Read release/observation |
 | `get_configuration` | None | Admin read/setup status |
 | `validate_configuration` | `configuration` | Admin validation/review digest |
 | `update_configuration` | `configuration`, `expectedRevision`, `reviewDigest`, `requestId` | Admin write |

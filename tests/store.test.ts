@@ -22,16 +22,9 @@ test("validation rejects incomplete, unknown, duplicate, invalid capacity/time/w
       ...good,
       agents: [{ ...good.agents[0], instructions: "Bearer abcdefghijklmnop" }],
     },
-    {
-      ...good,
-      release: {
-        ...good.release,
-        restrictedWindows: [
-          { weekdays: [1], start: "10:00", end: "12:00" },
-          { weekdays: [1], start: "11:00", end: "13:00" },
-        ],
-      },
-    },
+    { ...good, release: {} },
+    { ...good, schemaVersion: 1 },
+    { ...good, selection: { ...good.selection, administrativeHours: { start: "12:00", end: "11:00" } } },
   ])
     assert.throws(() => configuration(bad));
   for (const key of Object.keys(good)) {
@@ -78,7 +71,7 @@ test("atomic updates, stale reads, identical retry, identity and rollback guards
     s = new Store(join(dir, "policy.sqlite"));
     assert.equal(s.read("agents", 1).revision, 1);
     s.update("admin", "second", 1, hash, c);
-    assert.throws(() => s.read("release", 1), /REVISION_CONFLICT/);
+    assert.throws(() => s.read("selection", 1), /REVISION_CONFLICT/);
     assert.deepEqual(s.update("admin", "initial", 0, hash, c), {
       revision: 1,
       digest: hash,
@@ -138,17 +131,12 @@ test("relational children round-trip, FK/unique constraints hold and a mid-updat
     c.agents.push({ ...c.agents[0], id: "second-agent" });
     delete c.agents[1].environment;
     c.bindings.github.repositories.push("synthetic/second");
-    c.release.restrictedWindows[0].weekdays = [4, 2];
     s.update("admin", "initial", 0, digest(c), c);
     assert.deepEqual(s.adminRead().configuration, c);
     db.exec("PRAGMA foreign_keys=ON");
     assert.equal(db.prepare("SELECT COUNT(*) AS n FROM agents").get()!.n, 2);
     assert.equal(
       db.prepare("SELECT COUNT(*) AS n FROM repositories").get()!.n,
-      2,
-    );
-    assert.equal(
-      db.prepare("SELECT COUNT(*) AS n FROM release_days").get()!.n,
       2,
     );
     assert.throws(
@@ -206,18 +194,38 @@ test("unsafe JSON integers never commit an unreadable configuration revision", (
         /INVALID_CONFIGURATION/,
       );
     }
-    const invalid = structuredClone(c);
-    invalid.release.observationMinimumMinutes = Number.MAX_SAFE_INTEGER + 1;
-    assert.throws(
-      () =>
-        s.update("admin", "unsafe-observation", 1, digest(invalid), invalid),
-      /INVALID_CONFIGURATION/,
-    );
     assert.equal(s.adminRead().revision, 1);
-    assert.equal(s.read("release", 1).revision, 1);
+    assert.equal(s.read("selection", 1).revision, 1);
     s.update("admin", "valid-followup", 1, digest(c), c);
     assert.equal(s.adminRead().revision, 2);
   } finally {
     s.close();
   }
+});
+
+test("clean schema 3 excludes release storage and restores only inactive schema 2 policy", async () => {
+  const { DatabaseSync } = await import("node:sqlite");
+  const dir = mkdtempSync(join(tmpdir(), "ceo-clean-"));
+  const oldPath = join(dir, "old.sqlite");
+  const old = new DatabaseSync(oldPath);
+  old.exec("CREATE TABLE policy(revision INTEGER PRIMARY KEY); INSERT INTO policy VALUES(1); PRAGMA user_version=2");
+  try {
+    assert.throws(() => new Store(oldPath), /CLEAN_DATABASE_REQUIRED/);
+    assert.equal(old.prepare("PRAGMA user_version").get()!.user_version, 2);
+    assert.equal(old.prepare("SELECT revision FROM policy").get()!.revision, 1);
+    const path = join(dir, "new.sqlite");
+    const s = new Store(path);
+    const db = new DatabaseSync(path);
+    try {
+      assert.equal(db.prepare("PRAGMA user_version").get()!.user_version, 3);
+      assert.equal(db.prepare("SELECT count(*) n FROM sqlite_master WHERE type='table' AND name LIKE 'release_%'").get()!.n, 0);
+      assert.ok(!db.prepare("PRAGMA table_info(policy)").all().some(c => c.name === "observation_minutes"));
+      assert.deepEqual(s.adminRead(), { schemaVersion: 2, revision: 0, setupRequired: true, configuration: null, digest: null });
+      const c = { ...fixture(), active: false, executionEnabled: false, agents: [] };
+      assert.deepEqual(s.update("admin", "restored", 0, digest(c), c), { revision: 1, digest: digest(c) });
+      assert.deepEqual(s.adminRead().configuration, c);
+      assert.deepEqual(s.listEvents().events, []);
+      assert.equal(db.prepare("PRAGMA foreign_key_check").all().length, 0);
+    } finally { db.close(); s.close(); }
+  } finally { old.close(); rmSync(dir, { recursive: true, force: true }); }
 });

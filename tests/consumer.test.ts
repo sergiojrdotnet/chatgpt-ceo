@@ -7,7 +7,7 @@ import { digest } from "../src/model.ts";
 import fixture from "../examples/inactive-a.json" with { type: "json" };
 const envelope = z
   .object({
-    schemaVersion: z.literal(1),
+    schemaVersion: z.literal(2),
     revision: z.number().int().positive(),
     digest: z.string().regex(/^[a-f0-9]{64}$/),
     complete: z.literal(true),
@@ -22,7 +22,7 @@ const envelope = z
   .strict();
 function consume(
   read: (
-    subject: "context" | "agents" | "selection" | "release",
+    subject: "context" | "agents" | "selection",
     revision?: number,
   ) => unknown,
   approved: { revision: number; digest: string },
@@ -33,7 +33,6 @@ function consume(
     "context",
     "agents",
     "selection",
-    "release",
   ] as const) {
     const e = envelope.parse(
       read(subject, subject === "context" ? undefined : approved.revision),
@@ -66,10 +65,10 @@ test("partial, stale, inactive, unauthorized, unavailable and revision-changing 
   s.update("admin", "setup", 0, approved.digest, c);
   try {
     const read = (
-      subject: "context" | "agents" | "selection" | "release",
+      subject: "context" | "agents" | "selection",
       r?: number,
     ) => s.read(subject, r);
-    assert.equal(consume(read, approved, Date.now).length, 4);
+    assert.equal(consume(read, approved, Date.now).length, 3);
     for (const bad of [
       { complete: false },
       { readAt: "2000-01-01T00:00:00Z" },
@@ -101,7 +100,7 @@ test("partial, stale, inactive, unauthorized, unavailable and revision-changing 
     assert.throws(() =>
       consume(
         (subject, r) => {
-          if (subject === "release") throw Error("UNAVAILABLE");
+          if (subject === "selection") throw Error("UNAVAILABLE");
           return read(subject, r);
         },
         approved,

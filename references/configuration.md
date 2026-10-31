@@ -8,8 +8,7 @@ fallback is supported. Explicitly authorized generic analysis/testing can procee
 without company configuration.
 
 Read only needed subjects: `get_agents` for whole execution templates,
-`get_selection_policy` for selection/capacity, `get_release_policy` for release and
-observation. Pass the context's `revision` as `expectedRevision` on every subject
+`get_selection_policy` for selection/capacity. Pass the context's `revision` as `expectedRevision` on every subject
 read. Require successful complete responses with the same revision and digest,
 current `readAt`, and effective time no later than now. Fetch anew at each boundary;
 do not reuse an earlier turn's read. A missing field, partial result, timeout,
@@ -29,5 +28,10 @@ issue scope prevail; repository guidance controls technical execution.
 History is governed by the [coordination event contract](coordination-events.md).
 Use issue-filtered history before dispatch/retry and after interruption; it is
 observed evidence, never operational authority or a replacement for Linear.
+
+Configuration format is `schemaVersion: 2`. Release windows and observation
+minimums are not CEO configuration. Applicable project/repository procedures and
+explicit authorized task instructions supply release requirements; do not invent
+global defaults. Release coordination and its immutable events remain supported.
 
 Setup and configuration changes use [setup](../skills/setup/SKILL.md).

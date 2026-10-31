@@ -83,7 +83,9 @@ for the client connection and verification flow.
 
 ## Clean schema replacement
 
-This event schema requires a clean dedicated CEO database. There is no legacy data
+Database schema `user_version=3` and configuration `schemaVersion: 2` require a
+clean dedicated CEO database; existing schema-2 databases are rejected with
+`CLEAN_DATABASE_REQUIRED`. There is no legacy data
 migration, compatibility endpoint or fabricated history. For an explicitly authorized
 reset, first privately verify the exact CEO service, database path and mounted volume
 against inspection; stop that service, verify the backup and preserve the approved
@@ -93,14 +95,19 @@ Never select a volume by an assumed name or touch another service's data.
 
 Start the reviewed image against the empty database, set the separate `EVENT_EMAILS`
 operator binding, and restore only the previously approved inactive configuration
-through the reviewed configuration API. Verify revision/digest and all approved
+through the reviewed configuration API: remove the entire `release` object, set
+`schemaVersion: 2`, retain the other approved values, and enforce `active=false`,
+`executionEnabled=false`, `agents=[]`. Validate this exact proposal, then save with
+`expectedRevision: 0`, its returned `reviewDigest` and a fresh request ID. The new
+configuration starts at revision 1 with a new digest; old revision numbers, event
+IDs, cursors and retry keys are not restored. Verify revision/digest and all approved
 values, `active=false`, `executionEnabled=false`, empty agents, and empty history.
 Do not reactivate operations, configure agents or create schedules as part of reset.
 Old backups require the matching old image for isolated inspection; never run it
 against the new live database or treat an old backup as an event migration.
 
 Before closing delivery, verify the same installed plugin identity loads these skills
-and readable skill-local references, advertises the new APIs and authenticates on the
+and readable skill-local references, advertises the current APIs without `get_release_policy` and authenticates on the
 real host. Test an actual coordinator and an actual implementation executor's event
 producer/authority, real returned thread/turn IDs, and release-to-original-session
 notification/resumption. Preserve precise unsupported/denied/uncertain results.

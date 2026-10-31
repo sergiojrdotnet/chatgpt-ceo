@@ -13,8 +13,8 @@ Do not install, activate, provision identities or change security settings as se
    `expectedRevision=0`; otherwise preserve current identity and inspect the current
    configuration/revision. Credentials belong in the authenticated connection,
    never in policy values, instructions, issue comments or public source.
-2. Gather only missing company bindings, owner/timezone, agents, capacity/selection
-   and release/observation constraints using the supplied
+2. Gather only missing company bindings, owner/timezone, agents and capacity/selection
+   using the supplied
    [schema](../../references/policy.schema.json). No invented IDs, environment
    objects, model selections or business defaults. Each agent has a unique ID,
    selection description, startup instructions, model/effort and optional exact

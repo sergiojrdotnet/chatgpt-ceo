@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "profileId": "synthetic-profile-a",
   "effectiveAt": "2025-01-01T00:00:00Z",
   "active": false,
@@ -33,19 +33,6 @@
       "end": "16:00"
     },
     "lowActivityPreference": true
-  },
-  "release": {
-    "restrictedWindows": [
-      {
-        "weekdays": [
-          2,
-          4
-        ],
-        "start": "12:00",
-        "end": "13:00"
-      }
-    ],
-    "observationMinimumMinutes": 17
   },
   "agents": [
     {
