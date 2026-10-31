@@ -9,8 +9,8 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from jsonschema import Draft202012Validator, ValidationError
 
-CORE_VERSION = '0.1.0'
-SCHEMA = json.loads((Path(__file__).resolve().parents[1] / 'references/policy-v1.schema.json').read_text())
+CORE_VERSION = '0.2.0'
+SCHEMA = json.loads((Path(__file__).resolve().parents[1] / 'references/policy-v2.schema.json').read_text())
 
 
 class PolicyError(ValueError):
@@ -150,10 +150,58 @@ def read_policy(fetch, approved, *, now, max_age_seconds):
     return policy, evidence
 
 
+@dataclass(frozen=True)
+class RouteObservation:
+    """Trusted current catalog/adapter evidence, never profile-supplied authority.
+
+    cloud_route_verified means the adapter has an explicit cloud mechanism;
+    omitted-selector desktop behavior cannot set it true. No dispatch is provided.
+    """
+    kind: str
+    environment_config_id: str | None
+    capabilities: tuple[str, ...]
+    cloud_route_verified: bool
+
+
+def resolve_route(policy, route, catalog=(), required_capabilities=()):
+    """Resolve only the requested private binding; no privileged fallback."""
+    validate(policy)
+    if not isinstance(route, str) or route not in policy['routing']:
+        raise PolicyError('ROUTE_MISSING')
+    if (not isinstance(catalog, (list, tuple)) or
+            not isinstance(required_capabilities, (list, tuple)) or
+            any(not isinstance(c, str) or not c.strip() for c in required_capabilities)):
+        raise PolicyError('INVALID_CATALOG')
+    for observation in catalog:
+        if (not isinstance(observation, RouteObservation) or
+                observation.kind not in ('specialized', 'generalCloud') or
+                type(observation.cloud_route_verified) is not bool or
+                not isinstance(observation.capabilities, tuple) or
+                any(not isinstance(c, str) or not c.strip() for c in observation.capabilities) or
+                (observation.kind == 'generalCloud' and observation.environment_config_id is not None) or
+                (observation.kind == 'specialized' and
+                 (not isinstance(observation.environment_config_id, str) or
+                  not observation.environment_config_id.strip()))):
+            raise PolicyError('INVALID_CATALOG')
+    binding = policy['routing'][route]
+    matches = [o for o in catalog if o.kind == binding['kind'] and
+               o.environment_config_id == binding.get('environmentConfigId')]
+    if not matches:
+        raise PolicyError('ROUTE_UNAVAILABLE')
+    if len(matches) != 1:
+        raise PolicyError('ROUTE_AMBIGUOUS')
+    observation = matches[0]
+    if observation.cloud_route_verified is not True:
+        raise PolicyError('CLOUD_ROUTE_UNPROVEN')
+    if not set(required_capabilities).issubset(observation.capabilities):
+        raise PolicyError('CAPABILITIES_MISSING')
+    return observation
+
+
 def simulate(policy, *, authorized=False, paused=False, scoped_exception=False,
              dependency_blocked=False, required_input_missing=False, owned_wip=0,
              genuine_blockers=0, urgent_incident=False, route=None, task_class=None,
-             available_environments=(), available_models=(), user_model=None,
+             available_routes=(), required_capabilities=(), available_models=(), user_model=None,
              independent_alternative=False, low_activity=False, likely_input_dependency=False,
              release_required=False, release_fits=None, restoration_exception=False,
              mode='simulation'):
@@ -186,11 +234,10 @@ def simulate(policy, *, authorized=False, paused=False, scoped_exception=False,
     limit = policy['capacity']['urgentIncidentMax' if urgent_incident else 'activeMax']
     if owned_wip - genuine_blockers >= limit:
         return 'defer', 'CAPACITY_FULL'
-    binding = policy['routing'].get(route)
-    if not binding:
-        return 'stop', 'ROUTE_MISSING'
-    if binding['environmentConfigId'] not in available_environments:
-        return 'stop', 'ROUTE_UNAVAILABLE'
+    try:
+        resolve_route(policy, route, available_routes, required_capabilities)
+    except PolicyError as error:
+        return 'stop', str(error)
     choice = user_model if user_model is not None else policy['models'].get(task_class)
     if not choice:
         return 'needsDecision', 'MODEL_MISSING'
@@ -201,7 +248,7 @@ def simulate(policy, *, authorized=False, paused=False, scoped_exception=False,
         return 'stop', 'MODEL_UNAVAILABLE'
     if release_required and release_fits is not True and not restoration_exception:
         return 'defer', 'RELEASE_ASSESSMENT_REQUIRED'
-    prefer_low_activity = policy['selection']['lowSchoolActivityPreference'] and low_activity
+    prefer_low_activity = policy['selection']['lowActivityPreference'] and low_activity
     if independent_alternative and (prefer_low_activity or likely_input_dependency):
         return 'preferAlternative', 'PREFER_INDEPENDENT'
     return 'eligible', 'SIMULATION_ONLY'

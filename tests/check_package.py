@@ -1,4 +1,4 @@
-"""Local packaging check. No host install or integration claims."""
+"""Allowlisted local package validation; no host install or integration claims."""
 import json
 from pathlib import Path
 import re
@@ -8,6 +8,14 @@ import zipfile
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
+SKILLS = ('plan', 'select-work', 'delegate', 'reconcile-execution',
+          'operate-administration', 'coordinate-incidents', 'prepare-code-change',
+          'conduct-release', 'monitor-system')
+ALLOWED = ('plugin.json', 'README.md', 'requirements.txt',
+           'references/profile.md', 'references/state-evidence.md',
+           'references/policy-v2.schema.json', 'scripts/policy.py',
+           'examples/inactive-a.json', 'examples/inactive-b.json',
+           *(f'skills/{name}/SKILL.md' for name in SKILLS))
 
 
 def check(output):
@@ -22,16 +30,18 @@ def check(output):
     assert set(manifest) == {'$schema', 'name', 'version', 'description'}
     assert isinstance(manifest['description'], str) and manifest['description'].strip()
     skills = sorted((ROOT / 'skills').glob('*/SKILL.md'))
-    assert len(skills) == 1
-    allowed = ['plugin.json', 'skills/ceo-coordinate/SKILL.md',
-               'skills/ceo-coordinate/references/profile.md',
-               'skills/ceo-coordinate/references/administration.md',
-               'skills/ceo-coordinate/references/policy-v1.schema.json',
-               'skills/ceo-coordinate/scripts/policy.py',
-               'skills/ceo-coordinate/examples/inactive-a.json',
-               'skills/ceo-coordinate/examples/inactive-b.json']
-    paths = [ROOT / name for name in allowed]
-    assert all(path.is_file() and not path.is_symlink() for path in paths)
+    assert {p.parent.name for p in skills} == set(SKILLS)
+    paths = [ROOT / name for name in ALLOWED]
+    for path in paths:
+        assert path.is_file() and ROOT in path.resolve().parents
+        relative = path.relative_to(ROOT)
+        assert all(not (ROOT / parent).is_symlink() for parent in relative.parents)
+        assert not path.is_symlink()
+        if path.suffix == '.md':
+            for link in re.findall(r'\]\(([^)]+)\)', path.read_text()):
+                if '://' not in link:
+                    target = (path.parent / link.split('#')[0]).resolve()
+                    assert target in paths, f'Unpackaged reference: {link}'
     for skill in skills:
         content = skill.read_text()
         assert content.startswith('---\n')
@@ -39,26 +49,19 @@ def check(output):
         assert metadata['name'] == skill.parent.name
         assert isinstance(metadata['description'], str) and metadata['description'].strip()
         assert len(content.encode()) < 1024 * 1024
-        for path in skill.parent.rglob('*'):
-            assert not path.is_symlink()
-            if path in paths:
-                if path.suffix == '.md':
-                    for link in re.findall(r'\]\(([^)]+)\)', path.read_text()):
-                        if '://' not in link:
-                            target = (path.parent / link).resolve()
-                            assert ROOT in target.parents and target.is_file(), link
     with zipfile.ZipFile(output, 'w', zipfile.ZIP_DEFLATED) as archive:
         for path in sorted(paths):
             archive.write(path, f"{manifest['name']}/{path.relative_to(ROOT)}")
     with zipfile.ZipFile(output) as archive:
         assert archive.testzip() is None
         assert len(archive.namelist()) == len(paths)
-        assert all(not name.startswith('/') and '..' not in name.split('/') for name in archive.namelist())
+        assert all(not n.startswith('/') and '..' not in n.split('/') for n in archive.namelist())
         for path in paths:
             assert archive.read(f"{manifest['name']}/{path.relative_to(ROOT)}") == path.read_bytes()
-    words = len(skills[0].read_text().split())
-    print(f'Package PASS: {len(paths)} files, one skill, {words} entry words; archive {output}')
-    print('Local structural validation only; host ingestion and fresh-session behavior untested.')
+    counts = {p.parent.name: len(p.read_text().split()) for p in skills}
+    print(f'Package PASS: {len(paths)} files, {len(skills)} skills; archive {output}')
+    print(f'Entry word counts (not model tokens): {counts}')
+    print('Local structural validation only; host ingestion is a separate gate.')
 
 
 if __name__ == '__main__':

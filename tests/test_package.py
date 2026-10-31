@@ -12,7 +12,7 @@ from check_package import check, ROOT
 class Package(unittest.TestCase):
     def test_archive_is_self_contained_and_excludes_private_canary(self):
         # Synthetic stand-in for an accidentally adjacent private file.
-        canary = ROOT / 'skills/ceo-coordinate/private-canary.txt'
+        canary = ROOT / 'skills/delegate/private-canary.txt'
         self.assertFalse(canary.exists())
         try:
             canary.write_text('synthetic-private-canary-do-not-package')
@@ -25,7 +25,7 @@ class Package(unittest.TestCase):
                     self.assertTrue(all(b'synthetic-private-canary-do-not-package' not in archive.read(n)
                                         for n in archive.namelist()))
                     archive.extractall(folder)
-                path = Path(folder) / 'chatgpt-ceo/skills/ceo-coordinate/scripts/policy.py'
+                path = Path(folder) / 'chatgpt-ceo/scripts/policy.py'
                 spec = importlib.util.spec_from_file_location('policy', path)
                 module = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(module)

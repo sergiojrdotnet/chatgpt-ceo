@@ -1,54 +1,54 @@
 {
-  "schemaVersion": 1,
-  "profileId": "synthetic-profile-a",
+  "schemaVersion": 2,
+  "profileId": "synthetic-profile-b",
   "revision": 1,
   "effectiveAt": "2025-01-01T00:00:00Z",
   "active": false,
   "fixtureOnly": true,
   "executionEnabled": false,
-  "ownerRef": "synthetic-owner-a",
+  "ownerRef": "synthetic-owner-b",
   "agreement": {
-    "reference": "synthetic-agreement-a",
+    "reference": "synthetic-agreement-b",
     "revision": "example-1"
   },
   "timezone": "Etc/UTC",
   "bindings": {
     "linear": {
-      "workspaceRef": "synthetic-workspace-a",
-      "teamRef": "synthetic-team-a"
+      "workspaceRef": "synthetic-workspace-b",
+      "teamRef": "synthetic-team-b"
     },
     "github": {
       "repositories": [
-        "synthetic-owner-a/example"
+        "synthetic-owner-b/example"
       ]
     },
     "erpnext": {
-      "connectionRef": "synthetic-erp-a"
+      "connectionRef": "synthetic-erp-b"
     }
   },
   "routing": {
     "general": {
-      "environmentConfigId": "synthetic-cloud-a"
+      "kind": "generalCloud"
     }
   },
   "models": {
     "analysis": {
-      "model": "synthetic-model-a",
+      "model": "synthetic-model-b",
       "effort": "medium"
     }
   },
   "capacity": {
     "preferredMin": 1,
     "preferredMax": 3,
-    "activeMax": 4,
-    "urgentIncidentMax": 5
+    "activeMax": 6,
+    "urgentIncidentMax": 7
   },
   "selection": {
     "administrativeHours": {
       "start": "10:00",
       "end": "16:00"
     },
-    "lowSchoolActivityPreference": true
+    "lowActivityPreference": true
   },
   "release": {
     "restrictedWindows": [

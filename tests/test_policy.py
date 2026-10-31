@@ -7,7 +7,7 @@ import sys
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-SKILL = ROOT / 'skills/ceo-coordinate'
+SKILL = ROOT
 sys.path.insert(0, str(SKILL / 'scripts'))
 import policy as p
 
@@ -40,6 +40,10 @@ class Validation(unittest.TestCase):
     def test_all_required_fields_at_every_object(self):
         # Walk actual schema/fixture pairs, including nested maps/array entries.
         def walk(schema, value):
+            if 'oneOf' in schema:
+                branches = [b for b in schema['oneOf'] if p.Draft202012Validator(b).is_valid(value)]
+                self.assertEqual(len(branches), 1)
+                walk(branches[0], value)
             if schema.get('type') == 'object':
                 for key in schema.get('required', []):
                     bad = copy.deepcopy(value)
@@ -84,7 +88,7 @@ class Validation(unittest.TestCase):
                 p.validate(value)
 
     def test_invalid_nested_values(self):
-        cases = [(['schemaVersion'], 2), (['revision'], 0), (['revision'], True),
+        cases = [(['schemaVersion'], 1), (['revision'], 0), (['revision'], True),
                  (['ownerRef'], '  '), (['timezone'], 'Mars/Olympus'),
                  (['models', 'analysis', 'effort'], 'automatic'),
                  (['bindings', 'github', 'repositories'], ['same', 'same']),
@@ -239,7 +243,7 @@ class Reading(unittest.TestCase):
 
 class Decisions(unittest.TestCase):
     def decide(self, **kwargs):
-        defaults = dict(authorized=True, route='general', task_class='analysis', available_environments=('synthetic-cloud-a',),
+        defaults = dict(authorized=True, route='general', task_class='analysis', available_routes=(p.RouteObservation('specialized', 'synthetic-cloud-a', (), True),),
                         available_models=(('synthetic-model-a', 'medium'),))
         defaults.update(kwargs)
         return p.simulate(fixture(), **defaults)
@@ -265,7 +269,7 @@ class Decisions(unittest.TestCase):
                  ({'release_required':True,'restoration_exception':True}, 'SIMULATION_ONLY'),
                  ({'route':'development'}, 'ROUTE_MISSING'),
                  ({'route':'pilot'}, 'ROUTE_MISSING'),
-                 ({'available_environments':()}, 'ROUTE_UNAVAILABLE'),
+                 ({'available_routes':()}, 'ROUTE_UNAVAILABLE'),
                  ({'task_class':'visual'}, 'MODEL_MISSING'),
                  ({'available_models':()}, 'MODEL_UNAVAILABLE'),
                  ({'user_model':{'model':'synthetic-model-a','effort':'ultra'}}, 'MODEL_UNAVAILABLE'),
@@ -284,9 +288,9 @@ class Decisions(unittest.TestCase):
     def test_low_activity_preference_respects_profile_switch(self):
         for enabled in (True, False):
             value = fixture()
-            value['selection']['lowSchoolActivityPreference'] = enabled
+            value['selection']['lowActivityPreference'] = enabled
             facts = dict(authorized=True, route='general', task_class='analysis',
-                         available_environments=('synthetic-cloud-a',),
+                         available_routes=(p.RouteObservation('specialized', 'synthetic-cloud-a', (), True),),
                          available_models=(('synthetic-model-a', 'medium'),),
                          low_activity=True, independent_alternative=True)
             with self.subTest(enabled=enabled):

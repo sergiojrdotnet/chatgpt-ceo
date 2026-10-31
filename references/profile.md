@@ -1,7 +1,7 @@
 # Profile read and revision contract
 
 Use exactly one profile for the fixed Linear/GitHub/ERPNext workflow. The closed
-[policy v1 schema](policy-v1.schema.json) separates schemaVersion (integer), profile
+[policy v2 schema](policy-v2.schema.json) separates schemaVersion (integer), profile
 revision (monotonic integer), plugin SemVer and the host content version/ETag.
 The [inactive examples](../examples/inactive-a.json) and
 [second isolated fixture](../examples/inactive-b.json) contain fictional values.
@@ -47,6 +47,23 @@ An active/executionEnabled profile cannot authorize spending, contracts, new
 services, architecture/major UX decisions, production tests or resumed paused work.
 Fixture-only or execution-disabled profiles permit isolated simulation/analysis
 only. This MVP's helper rejects ALL live dispatch, including permissive profiles.
+
+Schema v2 replaces the rejected all-saved-environment routing contract; v1 is
+rejected, never silently migrated. Each optional route is either
+`{"kind":"specialized","environmentConfigId":"<private binding>"}` or
+`{"kind":"generalCloud"}`. No environment ID is required for general-cloud work.
+An absent route is a missing decision, not a fallback. A configured route is a
+business choice, not proof the platform can launch it. Resolve required capabilities
+against fresh trusted catalog/adapter observations using `resolve_route`.
+A general-cloud route needs explicit verified cloud support: omission of a selector
+currently defaults to desktop and must never supply that evidence. Unknown,
+ambiguous or capability-deficient routes stop affected dispatch. Do not borrow an
+operations/pilot binding for unrelated work. Environment names and IDs stay private.
+
+At selection, delegation, resumption, consequential action and completion, perform
+the fresh read and scope checks above. Independent explicitly authorized generic
+analysis/testing can continue without a company profile; report dependent live-use
+gaps instead of inventing values or claiming installed access.
 
 `simulate` requires an already freshly read policy and trusted pre-assessed facts;
 it is not a public authorization API. It does not traverse dependency graphs,

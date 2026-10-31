@@ -3,7 +3,7 @@
   "type": "object",
   "properties": {
     "schemaVersion": {
-      "const": 1,
+      "const": 2,
       "type": "integer"
     },
     "profileId": {
@@ -126,60 +126,140 @@
       "type": "object",
       "properties": {
         "development": {
-          "type": "object",
-          "properties": {
-            "environmentConfigId": {
-              "type": "string",
-              "minLength": 1,
-              "pattern": "\\S"
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "specialized"
+                },
+                "environmentConfigId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "\\S"
+                }
+              },
+              "required": [
+                "kind",
+                "environmentConfigId"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "generalCloud"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
             }
-          },
-          "required": [
-            "environmentConfigId"
-          ],
-          "additionalProperties": false
+          ]
         },
         "operations": {
-          "type": "object",
-          "properties": {
-            "environmentConfigId": {
-              "type": "string",
-              "minLength": 1,
-              "pattern": "\\S"
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "specialized"
+                },
+                "environmentConfigId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "\\S"
+                }
+              },
+              "required": [
+                "kind",
+                "environmentConfigId"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "generalCloud"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
             }
-          },
-          "required": [
-            "environmentConfigId"
-          ],
-          "additionalProperties": false
+          ]
         },
         "pilot": {
-          "type": "object",
-          "properties": {
-            "environmentConfigId": {
-              "type": "string",
-              "minLength": 1,
-              "pattern": "\\S"
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "specialized"
+                },
+                "environmentConfigId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "\\S"
+                }
+              },
+              "required": [
+                "kind",
+                "environmentConfigId"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "generalCloud"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
             }
-          },
-          "required": [
-            "environmentConfigId"
-          ],
-          "additionalProperties": false
+          ]
         },
         "general": {
-          "type": "object",
-          "properties": {
-            "environmentConfigId": {
-              "type": "string",
-              "minLength": 1,
-              "pattern": "\\S"
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "specialized"
+                },
+                "environmentConfigId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "\\S"
+                }
+              },
+              "required": [
+                "kind",
+                "environmentConfigId"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "generalCloud"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
             }
-          },
-          "required": [
-            "environmentConfigId"
-          ],
-          "additionalProperties": false
+          ]
         }
       },
       "additionalProperties": false
@@ -343,13 +423,13 @@
           ],
           "additionalProperties": false
         },
-        "lowSchoolActivityPreference": {
+        "lowActivityPreference": {
           "type": "boolean"
         }
       },
       "required": [
         "administrativeHours",
-        "lowSchoolActivityPreference"
+        "lowActivityPreference"
       ],
       "additionalProperties": false
     },

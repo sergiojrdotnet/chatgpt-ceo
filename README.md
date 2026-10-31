@@ -1,60 +1,68 @@
-# ChatGPT CEO
+# ChatGPT CEO Plugin
 
-A work-in-progress plugin for coordinating work across Linear, GitHub, and ERPNext.
+Nine independently invocable processes for work coordinated through Linear,
+GitHub and ERPNext. This package contains procedures and local synthetic helpers,
+not a scheduler, server, permission system or parallel task board.
 
-## MVP direction
+| Skill | Outcome and handoff |
+| --- | --- |
+| [plan](skills/plan/SKILL.md) | Prior-period review and top-down direction → select work |
+| [select-work](skills/select-work/SKILL.md) | Short ready queue within real capacity → delegate |
+| [delegate](skills/delegate/SKILL.md) | Issue-first assignment with explicit model/effort/capabilities → reconcile |
+| [reconcile-execution](skills/reconcile-execution/SKILL.md) | Actual sessions and results reconciled with Linear → next accountable action |
+| [operate-administration](skills/operate-administration/SKILL.md) | Bounded financial records and customer/supplier administration → verified saved state |
+| [coordinate-incidents](skills/coordinate-incidents/SKILL.md) | Impact and investigation/recovery ownership → verified restoration and follow-up |
+| [prepare-code-change](skills/prepare-code-change/SKILL.md) | Full issue and repository assessment → implementation/validation |
+| [conduct-release](skills/conduct-release/SKILL.md) | Exact-version authorized publication → destination and observation evidence |
+| [monitor-system](skills/monitor-system/SKILL.md) | Fresh bounded operational evidence → incident/release/reconciliation owner |
 
-- Reusable skills for planning, selecting, delegating, and verifying work.
-- Concise, configurable operating policies.
-- Research findings and decisions recorded in the owning Linear issue, with implementation tracked in GitHub and administrative work handled through ERPNext.
+Invoke only the applicable skill, then follow its explicit handoff when needed.
+Each works without first loading a coordinator entry skill. Development delegation
+requires prepare-code-change; administration and publication have separate paths.
+Linear owns objectives, acceptance and material deltas; delegation carries its ID
+and additional context instead of duplicating the issue. Commercial/marketing work
+is outside this MVP.
 
-## Public core, private profiles
+## Private profile contract
 
-This repository is intended for generic skills, schemas, documentation, and synthetic examples only. Organization-specific policies, environment bindings, credentials, and operational records belong in separate private profiles and must not be committed here.
+[Profile contract](references/profile.md) and [schema v2](references/policy-v2.schema.json)
+keep company identity, source locators, actual policy values and environment
+bindings outside this repository. Credentials stay in protected facilities.
+[Example A](examples/inactive-a.json) and [example B](examples/inactive-b.json) are
+wholly synthetic, inactive, fixture-only and execution-disabled.
 
-## Status
+Version 0.2.0 replaces the earlier monolithic design. Schema v2 explicitly supports
+a general-cloud business route without a specialized environment binding. It does
+not prove the host supports that route. An omitted selector currently defaults to
+desktop; unsupported dispatch blocks without fallback. V1 profiles are rejected;
+migration needs explicit review and a new approved checkpoint, not coercion.
 
-The initial skills-only core is available for review and synthetic validation. Private-profile access and installed-host behavior remain gated; this is not a production-ready plugin.
+Technical code/build/test/domain/architecture/runbook/safety facts remain in the
+product repository. Existing product procedures must remain until the replacement
+is discovered and loaded at the expected version in an actual executor.
 
-## Reviewable core
+## Local validation
 
-The portable `plugin.json` now exposes one entry skill, `ceo-coordinate`. It covers
-planning, selection, bounded delegation and outcome reconciliation, loading the
-profile contract first and administration only for ERPNext work. Existing authorized
-Linear, GitHub and ERPNext connections are prerequisites for future live workflows;
-this package bundles no connections, server, hook, OAuth or event automation.
-
-The Python helper is a pure prototype for strict policy reads and simulated
-decisions. It has no live action dispatcher. Both sample profiles are inactive;
-never replace them with private company data. Private-source ACL revocation and
-host-installed behavior require separate validation before operational use.
-
-### Local validation
-
-Use Python 3.12+ with system IANA timezone data, then:
+Python 3.10+ with the declared dependencies is required for the pure helpers.
+From a source checkout:
 
 ```sh
 python -m pip install -r requirements-dev.txt
 python -m unittest discover -s tests -v
 python tests/check_package.py /tmp/chatgpt-ceo.zip
+python -m compileall -q scripts tests
+git diff --check
 ```
 
-The last command checks the portable manifest, parses skill YAML, checks local
-references and builds/inspects an allowlisted ZIP outside the source tree. It does
-not install or publish a plugin. The helper requires `jsonschema`; `PyYAML` is used
-only by package checks. Tests make no network or live service calls.
+The archive includes runtime requirements; source tests and packaging tooling stay
+in the repository. The allowlist excludes adjacent files, tests and Git history.
+The [helper](scripts/policy.py) strictly validates profiles, checks trusted read
+observations/checkpoints, resolves simulated catalog evidence and returns synthetic
+decisions. It has no transport, dispatcher, persistent state or live-operation API.
+Profile flags and mocked observations never establish authority or host ACLs.
 
-### Editing and review
-
-Edit the concise entry skill or its focused references, keep examples synthetic,
-and run both checks. Audit all tracked files and the diff for private data before
-publication. Bump plugin SemVer for a release; schema changes require explicit
-compatibility handling. Policy rollback is a new approved higher profile revision,
-not selection of an older permissive source. Installation, enablement and host
-update/rollback verification require separate authorization and are not demonstrated
-by a local ZIP test. No license has been selected.
-
-Format references checked for this MVP:
-[plugin packaging](https://developers.openai.com/plugins/build/plugins),
-[skills](https://learn.chatgpt.com/docs/build-skills), and
-[plugin overview](https://learn.chatgpt.com/docs/plugins).
+Local package extraction, unit tests and dry-run scenario evaluation are distinct
+from installed-host discovery/invocation, actual generic-cloud routing, private-source
+access revocation, live ERP validation and operational activation. Those require
+separate evidence and applicable authorization. Word/byte counts describe files;
+they are not model token usage, cost or measured runtime context consumption.
