@@ -240,3 +240,36 @@ test("relational children round-trip, FK/unique constraints hold and a mid-updat
     rmSync(dir, { recursive: true, force: true });
   }
 });
+test("unsafe JSON integers never commit an unreadable configuration revision", () => {
+  const s = new Store(":memory:");
+  try {
+    const c = fixture();
+    s.update("admin", "initial", 0, digest(c), c);
+    for (const key of [
+      "preferredMin",
+      "preferredMax",
+      "activeMax",
+      "urgentIncidentMax",
+    ] as const) {
+      const invalid = structuredClone(c);
+      invalid.capacity[key] = Number.MAX_SAFE_INTEGER + 1;
+      assert.throws(
+        () => s.update("admin", `unsafe-${key}`, 1, digest(invalid), invalid),
+        /INVALID_CONFIGURATION/,
+      );
+    }
+    const invalid = structuredClone(c);
+    invalid.release.observationMinimumMinutes = Number.MAX_SAFE_INTEGER + 1;
+    assert.throws(
+      () =>
+        s.update("admin", "unsafe-observation", 1, digest(invalid), invalid),
+      /INVALID_CONFIGURATION/,
+    );
+    assert.equal(s.adminRead().revision, 1);
+    assert.equal(s.read("release", 1).revision, 1);
+    s.update("admin", "valid-followup", 1, digest(c), c);
+    assert.equal(s.adminRead().revision, 2);
+  } finally {
+    s.close();
+  }
+});
