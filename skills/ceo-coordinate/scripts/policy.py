@@ -229,3 +229,54 @@ def reconcile_attempt(*, attempted, response_uncertain, readback, acceptance_met
     if readback in ('conflicting', 'failed'):
         return 'failed'
     return 'blocked'
+
+
+def reconcile_execution(*, association_matches, checkpoint_current, scope_allowed,
+                        duplicate_reconciled, execution, state_matches,
+                        attempted, response_uncertain, readback, acceptance_met,
+                        pending_review, owner):
+    """Pure simulation recommendation from trusted, freshly assessed observations.
+
+    Association includes issue, execution, operation and artifact identity.
+    Checkpoint includes current profile/policy, routing and requested settings.
+    Duplicate means durable prior reconciliation was inspected, not event equality.
+    No recommendation authorizes a write or makes an issue Done.
+    """
+    def result(outcome, action):
+        return {'outcome': outcome, 'nextAction': action, 'owner': owner}
+
+    if not isinstance(owner, str) or not owner.strip():
+        return {'outcome': 'blocked', 'nextAction': 'resolve_owner', 'owner': None}
+    facts = (association_matches, checkpoint_current, scope_allowed,
+             duplicate_reconciled, state_matches, attempted, response_uncertain,
+             acceptance_met, pending_review)
+    if any(type(fact) is not bool for fact in facts):
+        return result('blocked', 'inspect_invalid_observation')
+    if execution not in ('running', 'ended', 'disconnected', 'failed', 'denied'):
+        return result('blocked', 'inspect_invalid_observation')
+    if readback not in ('matching', 'absent', 'conflicting', 'failed'):
+        return result('blocked', 'inspect_invalid_observation')
+    if not association_matches:
+        return result('blocked', 'inspect_association')
+    if not checkpoint_current or not scope_allowed:
+        return result('blocked', 'revalidate_scope_and_checkpoint')
+    if execution == 'denied':
+        return result('blocked', 'escalate_denial')
+    # Uncertainty and drift must not disappear behind a duplicate notification.
+    if response_uncertain and readback != 'matching':
+        return result('uncertain', 'inspect_effect_without_retry')
+    if not state_matches:
+        return result('blocked', 'reread_state_and_integration')
+    if execution in ('running', 'disconnected'):
+        return result('uncertain' if execution == 'disconnected' else 'blocked',
+                      'inspect_existing_execution')
+    if execution == 'failed':
+        return result('failed', 'inspect_failure_and_effect')
+    outcome = reconcile_attempt(attempted=attempted,
+                                response_uncertain=response_uncertain,
+                                readback=readback, acceptance_met=acceptance_met,
+                                pending_review=pending_review)
+    if outcome == 'verified':
+        return result(outcome, 'retain_prior_result' if duplicate_reconciled
+                      else 'record_verified_stage')
+    return result(outcome, 'inspect_acceptance_and_review')

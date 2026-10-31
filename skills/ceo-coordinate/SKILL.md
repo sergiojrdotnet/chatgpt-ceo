@@ -62,7 +62,9 @@ Delegate only bounded, authorized scope to technical executors with acceptance,
 repository/target, policy revision/provenance, route, model choice, dependencies,
 forbidden consequences and evidence requirements. Repository instructions own
 implementation, technical review and release details. Do not duplicate them here.
-Read [administration](references/administration.md) only for ERPNext work.
+Read [delegation](references/delegation.md) for handoff, callback or resume; it
+defines association, deduplication and result records. Read
+[administration](references/administration.md) only for ERPNext work.
 
 ## Reconcile actual outcomes
 

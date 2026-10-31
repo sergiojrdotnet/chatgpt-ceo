@@ -26,6 +26,7 @@ def check(output):
     allowed = ['plugin.json', 'skills/ceo-coordinate/SKILL.md',
                'skills/ceo-coordinate/references/profile.md',
                'skills/ceo-coordinate/references/administration.md',
+               'skills/ceo-coordinate/references/delegation.md',
                'skills/ceo-coordinate/references/policy-v1.schema.json',
                'skills/ceo-coordinate/scripts/policy.py',
                'skills/ceo-coordinate/examples/inactive-a.json',
