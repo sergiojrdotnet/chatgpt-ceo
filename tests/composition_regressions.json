@@ -100,5 +100,19 @@
       "Retain and invoke repository technical skill for versioning/publication mechanics; plugin coordinates authority/evidence/Linear/monitoring without duplicating rules",
       "Report the missing technical-skill gap before dependent publication; do not invent rules or remove product skill"
     ]
+  },
+  {
+    "name": "standalone-monitor-start",
+    "skills": [
+      "monitor-system"
+    ],
+    "steps": [
+      "A standalone Todo issue authorizes ten minutes of observation. Profile, scope, duration and access are valid; only this skill and its profile reference are loaded. State write times out and readback is unavailable. May source discovery or baseline start?",
+      "Readback confirms In Progress. Contrast release observation already In Validation, pre-publication baseline Awaiting Release and consultation/synthetic dry run."
+    ],
+    "expected": [
+      "Verify In Progress before live discovery/baseline/observation; uncertainty stops dependent monitoring",
+      "Preserve evidenced delivery phases; consultation and synthetic dry runs start no live monitoring or status mutation"
+    ]
   }
 ]

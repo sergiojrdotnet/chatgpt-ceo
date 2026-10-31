@@ -17,6 +17,14 @@ it does not authorize remediation, device actions or schedules.
    invent one. Release observation must meet its private minimum after completion;
    a shorter request cannot satisfy it. Baseline-only and dry-run requests do not
    start a timed observation period or live calls merely by loading this skill.
+   For authorized substantive monitoring on a standalone issue, establish In
+   Progress and verify readback before live source discovery, baseline collection
+   or observation. Resolve failed/uncertain state writes or readback before those
+   dependent actions. For release observation, preserve and verify an evidenced
+   In Validation phase instead of regressing it; likewise retain an evidenced
+   Awaiting Release phase for a pre-publication baseline. Record active owner and
+   next checkpoint. Consultation and synthetic dry runs do not start execution
+   or mutate status.
 2. Discover current sources through all pages. Record role, relevance, access and
    freshness, distinguishing configured, read, inaccessible and untested. Select
    relevant logs/metrics/traces/connectivity; every connector is not mandatory for
