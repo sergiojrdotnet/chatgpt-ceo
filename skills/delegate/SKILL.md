@@ -32,16 +32,15 @@ Use the same revision for all configuration reads; follow the linked contract.
    cloud execution. Missing/mismatched/unavailable capabilities block dispatch;
    never silently substitute model, effort, template or privileged destination.
    Do not infer effective settings, cost or quality from requested configuration.
-4. BEFORE dispatch, use `get_checkpoint` and `save_checkpoint` to persist and
-   verify recoverable protected attempt evidence:
-   intended-attempt identity, phase, issue ID, selected agent ID and full template,
-   approved configuration revision/digest checkpoint,
-   requested model/effort, verified destination, owner and next check. If recording
-   or readback fails or is uncertain, stop dispatch and reconcile that checkpoint.
-   An intended attempt is not proof of submission. Its storage transaction does not make dispatch atomic
-   or provide an exactly-once guarantee; interruption around sending
-   can still leave occurrence unknown. Recover the checkpoint after restart and
-   inspect authoritative sessions/results before considering another attempt.
+4. BEFORE dispatch, read all pages of `list_coordination_events({issueId})`
+   and inspect actual runtime ownership/effects. Use `append_coordination_event`
+   to record a `delegation` event with
+   `outcome: planned`, phase, correlation ID, short reason and references to the
+   selected template/configuration and authorized issue; verify readback. Keep full
+   settings in the configured template and protected handoff, not event prose.
+   If recording/readback fails, stop dependent dispatch and reconcile the gap.
+   Follow the [event contract](../../references/coordination-events.md) for retries,
+   attribution and uncertainty. A planned event is neither dispatch nor a lock.
 5. Send the issue ID, required process skill, the selected agent's `instructions`
    and only genuinely additional context. `description` is for choosing the agent;
    `instructions` is executor startup context (role, tools/context, custom guidance).
@@ -51,21 +50,16 @@ Use the same revision for all configuration reads; follow the linked contract.
    Require the executor to read the entire issue and relevant comments/references.
    Development MUST invoke [prepare-code-change](../prepare-code-change/SKILL.md);
    administration invokes [operate-administration](../operate-administration/SKILL.md);
-   publication invokes [conduct-release](../conduct-release/SKILL.md). Other work
+   publication invokes the already-assigned executor path of
+   [conduct-release](../conduct-release/SKILL.md), without redelegating release. Other work
    names its applicable process. Do not repeat objective/acceptance from the issue.
-6. Use `save_checkpoint` to record the actual returned `threadId` (stable session)
-   and `turnId` (specific turn, when returned), response and observed effective
-   metadata (unknown when absent); verify with `get_checkpoint`. Never invent IDs.
-   If creation succeeds but saving fails, retain those returned IDs in protected
-   task evidence and inspect that existing thread before retrying any dispatch.
-   When an authorized shared release already uses one session for several issues,
-   associate its actual thread ID with each issue/phase attempt instead of creating
-   duplicate release sessions. Preserve earlier implementation links.
-   Pass only necessary private context. A known rejection is not submission; a timeout, missing response
-   or failed post-send record leaves dispatch uncertain until reconciled. Inspect
-   actual sessions/results before retrying; an empty session list alone is not
-   definitive failure. If checkpoint recovery is unavailable, stop dependent retry
-   or resumption and report the gap.
+6. Append a new `delegation` event after the actual response using its returned
+   `threadId` and optional `turnId`, phase and correlation ID. Record `confirmed`
+   only for evidenced submission, `failed` for evidenced rejection, or `uncertain`
+   for unknown occurrence. Verify readback. Record observed effective settings only
+   when returned. A shared release has per-issue events naming its one actual thread.
+   If dispatch succeeds but recording fails, preserve the actual IDs in protected
+   task evidence and inspect that existing thread before retrying dispatch.
 
 Handoff: [reconcile-execution](../reconcile-execution/SKILL.md) owns follow-through.
 A dispatch acknowledgement neither starts substantive execution nor proves success.

@@ -79,11 +79,13 @@ export function configuration(input: unknown): Configuration {
   )
     fail("INVALID_TIMESTAMP");
   const cap = c.capacity;
-  if (!(
-    cap.preferredMin <= cap.preferredMax &&
-    cap.preferredMax <= cap.activeMax &&
-    cap.urgentIncidentMax === cap.activeMax + 1
-  ))
+  if (
+    !(
+      cap.preferredMin <= cap.preferredMax &&
+      cap.preferredMax <= cap.activeMax &&
+      cap.urgentIncidentMax === cap.activeMax + 1
+    )
+  )
     fail("INVALID_CAPACITY");
   if (new Set(c.agents.map((a) => a.id)).size !== c.agents.length)
     fail("DUPLICATE_AGENT_ID");
@@ -122,54 +124,118 @@ export const identifier = z
   .min(1)
   .max(160)
   .regex(/^[A-Za-z0-9][A-Za-z0-9._:/-]*$/);
-export const checkpointSchema = z
+export const actionSchema = z.enum([
+  "planning",
+  "selection",
+  "delegation",
+  "execution",
+  "release-plan",
+  "publication",
+  "handoff",
+  "validation",
+  "incident",
+  "administration",
+  "configuration",
+  "correction",
+]);
+export const scopeTypeSchema = z.enum([
+  "issue",
+  "project",
+  "configuration",
+  "incident",
+]);
+const timestamp = z.iso
+  .datetime({ offset: true })
+  .refine(
+    (v) => !v.endsWith("-00:00") && Number.isFinite(Date.parse(v)),
+    "Invalid timestamp",
+  )
+  .transform((v) => new Date(v).toISOString());
+export const eventSchema = z
   .object({
-    attemptId: identifier,
-    phase: z
-      .string()
-      .max(64)
-      .regex(/^[a-z][a-z0-9-]*$/),
-    agentId: identifier,
-    ownerRef: z.string().trim().min(1).max(160),
-    scope: z.string().trim().min(1).max(2000),
-    nextCheck: z.iso.datetime({ offset: true }),
-    state: z.enum([
-      "intended",
-      "submitted",
-      "uncertain",
-      "rejected",
-      "verified",
-      "blocked",
+    action: actionSchema,
+    scope: z.object({ type: scopeTypeSchema, id: identifier }).strict(),
+    issueId: identifier.optional(),
+    phase: z.enum(["implementation", "release", "validation"]).optional(),
+    reason: z.string().trim().min(1).max(1000),
+    result: z.string().trim().min(1).max(2000),
+    outcome: z.enum([
+      "planned",
+      "confirmed",
       "failed",
+      "uncertain",
+      "blocked",
+      "deferred",
     ]),
+    observedAt: timestamp,
+    evidenceRefs: z.array(z.string().trim().min(1).max(500)).max(30),
     threadId: identifier.optional(),
     turnId: identifier.optional(),
-    evidenceRefs: z.array(z.string().trim().min(1).max(500)).max(30),
+    correlationId: identifier.optional(),
+    correctsEventId: z.uuid().optional(),
   })
   .strict()
-  .superRefine((c, ctx) => {
-    if (c.turnId && !c.threadId)
-      ctx.addIssue({
-        code: "custom",
-        message: "Turn ID requires its thread ID",
-      });
-    if (["verified", "rejected"].includes(c.state) && !c.evidenceRefs.length)
-      ctx.addIssue({
-        code: "custom",
-        message: "Terminal outcome requires evidence references",
-      });
-    if (c.state === "submitted" && !c.threadId)
-      ctx.addIssue({
-        code: "custom",
-        message: "Submitted outcome requires the returned thread ID",
-      });
+  .superRefine((e, ctx) => {
+    const problem = (message: string) =>
+      ctx.addIssue({ code: "custom", message });
+    if (e.turnId && !e.threadId) problem("Turn ID requires thread ID");
+    if (e.scope.type === "issue" && e.issueId !== e.scope.id)
+      problem("Issue scope requires matching canonical issueId");
+    if (["confirmed", "failed"].includes(e.outcome) && !e.evidenceRefs.length)
+      problem("Confirmed or failed outcome requires evidence");
+    if ((e.action === "correction") !== !!e.correctsEventId)
+      problem(
+        "Corrections require a linked event; other actions cannot correct",
+      );
+    if (new Set(e.evidenceRefs).size !== e.evidenceRefs.length)
+      problem("Duplicate evidence reference");
+    if (
+      /-----BEGIN .*PRIVATE KEY-----|\bBearer\s+[A-Za-z0-9._~-]{12,}|https?:\/\/[^\s/]+:[^\s/]+@/i.test(
+        JSON.stringify(e),
+      )
+    )
+      problem("Credential material forbidden");
   });
-export type Checkpoint = z.infer<typeof checkpointSchema>;
+export const appendEventSchema = z
+  .object({
+    requestId: identifier,
+    expectedRevision: z.number().int().positive(),
+    event: eventSchema,
+  })
+  .strict();
+export const listEventsSchema = z
+  .object({
+    issueId: identifier.optional(),
+    scopeType: scopeTypeSchema.optional(),
+    scopeId: identifier.optional(),
+    action: actionSchema.optional(),
+    from: timestamp.optional(),
+    to: timestamp.optional(),
+    limit: z.number().int().min(1).max(100).default(50),
+    cursor: z.string().min(1).max(1024).optional(),
+  })
+  .strict()
+  .superRefine((f, ctx) => {
+    if (f.scopeId && !f.scopeType)
+      ctx.addIssue({ code: "custom", message: "scopeId requires scopeType" });
+    if (f.from && f.to && f.from > f.to)
+      ctx.addIssue({ code: "custom", message: "Invalid time range" });
+  });
+export type AppendEventInput = z.input<typeof appendEventSchema>;
+export type ListEventsInput = z.input<typeof listEventsSchema>;
+export type EventInput = z.infer<typeof eventSchema>;
+export type CoordinationEvent = EventInput & {
+  eventId: string;
+  recordedAt: string;
+  producerId: string;
+  configurationRevision: number;
+  configurationDigest: string;
+};
 export type Principal = {
   id: string;
-  roles: Set<"read" | "admin" | "checkpoint">;
+  roles: Set<"read" | "admin" | "event">;
   expiresAt: number;
 };
-export function authorize(p: Principal, role: "read" | "admin" | "checkpoint") {
+export function authorize(p: Principal, role: "read" | "admin" | "event") {
   if (p.expiresAt <= Date.now() || !p.roles.has(role)) fail("UNAUTHORIZED");
 }

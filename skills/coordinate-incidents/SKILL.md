@@ -40,3 +40,9 @@ Use the same revision for all configuration reads; follow the linked contract.
 
 Handoff: [reconcile-execution](../reconcile-execution/SKILL.md) checks outcome and
 state; [plan](../plan/SKILL.md) considers reliability lessons and priorities.
+
+Append `incident` events through `append_coordination_event` at material triage,
+recovery decisions and verified restoration. Reference impact/recovery evidence and
+keep failed or uncertain outcomes explicit; do not log every telemetry query.
+Follow the [event contract](../../references/coordination-events.md) for payload,
+attribution and recovery.

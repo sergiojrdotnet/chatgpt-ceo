@@ -1,20 +1,17 @@
+import { randomUUID } from "node:crypto";
+import { z } from "zod";
 import { DatabaseSync, backup } from "node:sqlite";
 import type { SQLInputValue } from "node:sqlite";
 import { mkdirSync, chmodSync } from "node:fs";
 import { dirname } from "node:path";
-import { configuration, digest, fail, checkpointSchema } from "./model.ts";
-import type { Checkpoint, Agent } from "./model.ts";
-type RelatedSession = {
-  threadId: string;
-  attempts: {
-    attemptId: string;
-    phase: string;
-    agentId: string;
-    configurationRevision: number;
-    state: Checkpoint["state"];
-    turnIds: string[];
-  }[];
-};
+import {
+  configuration,
+  digest,
+  fail,
+  appendEventSchema,
+  listEventsSchema,
+} from "./model.ts";
+import type { CoordinationEvent, Agent } from "./model.ts";
 type Row = Record<string, string | number | null>;
 export class Store {
   private db: DatabaseSync;
@@ -22,9 +19,24 @@ export class Store {
     if (path !== ":memory:")
       mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
     this.db = new DatabaseSync(path);
-    this.db
-      .exec(`PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000;
-      CREATE TABLE IF NOT EXISTS policy(
+    try {
+      this.db.exec(
+        "PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;",
+      );
+      this.transaction(() => {
+        const version = Number(
+          this.db.prepare("PRAGMA user_version").get()!.user_version,
+        );
+        const hasTables = !!this.db
+          .prepare(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' LIMIT 1",
+          )
+          .get();
+        if ((hasTables && version !== 2) || (!hasTables && version !== 0)) {
+          fail("CLEAN_DATABASE_REQUIRED");
+        }
+
+        this.db.exec(`CREATE TABLE IF NOT EXISTS policy(
         revision INTEGER PRIMARY KEY CHECK(revision>0), digest TEXT NOT NULL,
         profile_id TEXT NOT NULL, effective_at TEXT NOT NULL, active INTEGER NOT NULL CHECK(active IN(0,1)),
         fixture_only INTEGER NOT NULL CHECK(fixture_only IN(0,1)), execution_enabled INTEGER NOT NULL CHECK(execution_enabled IN(0,1)),
@@ -39,15 +51,60 @@ export class Store {
       CREATE TABLE IF NOT EXISTS agents(revision INTEGER NOT NULL REFERENCES policy(revision),id TEXT NOT NULL,position INTEGER NOT NULL CHECK(position>=0),name TEXT NOT NULL,description TEXT NOT NULL,instructions TEXT NOT NULL,model TEXT NOT NULL,effort TEXT NOT NULL CHECK(effort IN('low','medium','high','xhigh','max','ultra')),environment TEXT,PRIMARY KEY(revision,id),UNIQUE(revision,position)) STRICT;
       CREATE TABLE IF NOT EXISTS release_windows(revision INTEGER NOT NULL REFERENCES policy(revision),position INTEGER NOT NULL CHECK(position>=0),start TEXT NOT NULL,end TEXT NOT NULL CHECK(end>start),PRIMARY KEY(revision,position)) STRICT;
       CREATE TABLE IF NOT EXISTS release_days(revision INTEGER NOT NULL,window_position INTEGER NOT NULL,position INTEGER NOT NULL CHECK(position>=0),weekday INTEGER NOT NULL CHECK(weekday BETWEEN 1 AND 7),PRIMARY KEY(revision,window_position,position),UNIQUE(revision,window_position,weekday),FOREIGN KEY(revision,window_position) REFERENCES release_windows(revision,position)) STRICT;
-      CREATE TABLE IF NOT EXISTS sessions(thread_id TEXT PRIMARY KEY,first_seen_at TEXT NOT NULL) STRICT;
-      CREATE TABLE IF NOT EXISTS session_turns(thread_id TEXT NOT NULL REFERENCES sessions(thread_id),turn_id TEXT NOT NULL,first_seen_at TEXT NOT NULL,PRIMARY KEY(thread_id,turn_id)) STRICT;
-      CREATE TABLE IF NOT EXISTS issue_sessions(issue TEXT NOT NULL,attempt_id TEXT NOT NULL,thread_id TEXT NOT NULL REFERENCES sessions(thread_id),phase TEXT NOT NULL,agent_id TEXT NOT NULL,configuration_revision INTEGER NOT NULL,first_version INTEGER NOT NULL,PRIMARY KEY(issue,attempt_id,thread_id),FOREIGN KEY(configuration_revision,agent_id) REFERENCES agents(revision,id)) STRICT;
-      CREATE TABLE IF NOT EXISTS issue_session_turns(issue TEXT NOT NULL,attempt_id TEXT NOT NULL,thread_id TEXT NOT NULL,turn_id TEXT NOT NULL,first_version INTEGER NOT NULL,PRIMARY KEY(issue,attempt_id,thread_id,turn_id),FOREIGN KEY(issue,attempt_id,thread_id) REFERENCES issue_sessions(issue,attempt_id,thread_id),FOREIGN KEY(thread_id,turn_id) REFERENCES session_turns(thread_id,turn_id)) STRICT;
-      CREATE TABLE IF NOT EXISTS checkpoints(issue TEXT NOT NULL,version INTEGER NOT NULL CHECK(version>0),attempt_id TEXT NOT NULL,phase TEXT NOT NULL,agent_id TEXT NOT NULL,configuration_revision INTEGER NOT NULL,owner_ref TEXT NOT NULL,scope TEXT NOT NULL,next_check TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN('intended','submitted','uncertain','rejected','verified','blocked','failed')),thread_id TEXT REFERENCES sessions(thread_id),turn_id TEXT CHECK(turn_id IS NULL OR thread_id IS NOT NULL),updated_at TEXT NOT NULL,PRIMARY KEY(issue,version),FOREIGN KEY(configuration_revision,agent_id) REFERENCES agents(revision,id)) STRICT;
-      CREATE TABLE IF NOT EXISTS checkpoint_evidence(issue TEXT NOT NULL,version INTEGER NOT NULL,position INTEGER NOT NULL CHECK(position>=0),reference TEXT NOT NULL,PRIMARY KEY(issue,version,position),FOREIGN KEY(issue,version) REFERENCES checkpoints(issue,version)) STRICT;
-      CREATE TABLE IF NOT EXISTS requests(actor TEXT NOT NULL,id TEXT NOT NULL,digest TEXT NOT NULL,operation TEXT NOT NULL CHECK(operation IN('configuration','checkpoint')),result_revision INTEGER NOT NULL,issue TEXT,PRIMARY KEY(actor,id)) STRICT;
+      CREATE TABLE IF NOT EXISTS coordination_events(
+        seq INTEGER PRIMARY KEY CHECK(seq>0),event_id TEXT NOT NULL UNIQUE,
+        action TEXT NOT NULL CHECK(action IN('planning','selection','delegation','execution','release-plan','publication','handoff','validation','incident','administration','configuration','correction')),
+        scope_type TEXT NOT NULL CHECK(scope_type IN('issue','project','configuration','incident')),scope_id TEXT NOT NULL,
+        issue_id TEXT,phase TEXT CHECK(phase IN('implementation','release','validation')),
+        reason TEXT NOT NULL CHECK(length(reason) BETWEEN 1 AND 1000),result TEXT NOT NULL CHECK(length(result) BETWEEN 1 AND 2000),
+        outcome TEXT NOT NULL CHECK(outcome IN('planned','confirmed','failed','uncertain','blocked','deferred')),
+        observed_at TEXT NOT NULL,recorded_at TEXT NOT NULL,producer_id TEXT NOT NULL,
+        configuration_revision INTEGER NOT NULL REFERENCES policy(revision),
+        thread_id TEXT,turn_id TEXT CHECK(turn_id IS NULL OR thread_id IS NOT NULL),correlation_id TEXT,
+        corrects_event_id TEXT REFERENCES coordination_events(event_id),evidence_count INTEGER NOT NULL CHECK(evidence_count BETWEEN 0 AND 30),
+        CHECK(scope_type!='issue' OR (issue_id IS NOT NULL AND issue_id=scope_id)),
+        CHECK((action='correction' AND corrects_event_id IS NOT NULL) OR (action!='correction' AND corrects_event_id IS NULL)),
+        CHECK(outcome NOT IN('confirmed','failed') OR evidence_count>0)
+      ) STRICT;
+      CREATE INDEX IF NOT EXISTS events_issue ON coordination_events(issue_id,seq);
+      CREATE INDEX IF NOT EXISTS events_scope ON coordination_events(scope_type,scope_id,seq);
+      CREATE INDEX IF NOT EXISTS events_action ON coordination_events(action,seq);
+      CREATE INDEX IF NOT EXISTS events_time ON coordination_events(observed_at,seq);
+      CREATE TABLE IF NOT EXISTS event_evidence(event_id TEXT NOT NULL REFERENCES coordination_events(event_id),position INTEGER NOT NULL CHECK(position>=0),reference TEXT NOT NULL CHECK(length(reference) BETWEEN 1 AND 500),PRIMARY KEY(event_id,position),UNIQUE(event_id,reference)) STRICT;
+      CREATE TRIGGER IF NOT EXISTS evidence_bound BEFORE INSERT ON event_evidence WHEN NEW.position >= (SELECT evidence_count FROM coordination_events WHERE event_id=NEW.event_id) BEGIN SELECT RAISE(ABORT,'EVIDENCE_LIMIT'); END;
+      CREATE TRIGGER IF NOT EXISTS correction_scope BEFORE INSERT ON coordination_events WHEN NEW.corrects_event_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM coordination_events WHERE event_id=NEW.corrects_event_id AND scope_type=NEW.scope_type AND scope_id=NEW.scope_id AND issue_id IS NEW.issue_id) BEGIN SELECT RAISE(ABORT,'CORRECTION_SCOPE_MISMATCH'); END;
+      CREATE TABLE IF NOT EXISTS requests(actor TEXT NOT NULL,id TEXT NOT NULL,digest TEXT NOT NULL,operation TEXT NOT NULL CHECK(operation IN('configuration','event')),result_revision INTEGER NOT NULL REFERENCES policy(revision),event_id TEXT REFERENCES coordination_events(event_id),PRIMARY KEY(actor,id),CHECK((operation='event')=(event_id IS NOT NULL))) STRICT;
+      CREATE TABLE IF NOT EXISTS store_identity(id INTEGER PRIMARY KEY CHECK(id=1),value TEXT NOT NULL) STRICT;
       CREATE TABLE IF NOT EXISTS audit(seq INTEGER PRIMARY KEY,actor TEXT NOT NULL,operation TEXT NOT NULL,revision INTEGER NOT NULL,at TEXT NOT NULL) STRICT;`);
-    if (path !== ":memory:") chmodSync(path, 0o600);
+        this.db
+          .prepare("INSERT OR IGNORE INTO store_identity VALUES(1,?)")
+          .run(randomUUID());
+        // No API or ordinary SQL update/delete can rewrite accepted evidence or policy.
+        for (const table of [
+          "policy",
+          "bindings",
+          "repositories",
+          "agents",
+          "release_windows",
+          "release_days",
+          "coordination_events",
+          "event_evidence",
+          "requests",
+          "audit",
+          "store_identity",
+        ]) {
+          for (const operation of ["UPDATE", "DELETE"])
+            this.db.exec(
+              `CREATE TRIGGER IF NOT EXISTS immutable_${table}_${operation} BEFORE ${operation} ON ${table} BEGIN SELECT RAISE(ABORT,'IMMUTABLE_RECORD'); END;`,
+            );
+        }
+        this.db.exec("PRAGMA user_version=2");
+      });
+      if (path !== ":memory:") chmodSync(path, 0o600);
+    } catch (error) {
+      this.db.close();
+      throw error;
+    }
   }
   close() {
     this.db.close();
@@ -161,18 +218,14 @@ export class Store {
     };
   }
   private replay(row: Row) {
-    if (row.operation === "configuration") {
-      const p = this.policy(Number(row.result_revision));
-      return { revision: Number(row.result_revision), digest: p.digest };
-    }
-    return this.checkpoint(String(row.issue), Number(row.result_revision));
+    const p = this.policy(Number(row.result_revision));
+    return { revision: Number(row.result_revision), digest: p.digest };
   }
-  private mutate<T extends { revision?: number; version?: number }>(
+  private mutate<T extends { revision: number }>(
     actor: string,
     requestId: string,
     input: unknown,
-    operation: "configuration" | "checkpoint",
-    issue: string | null,
+    operation: "configuration",
     run: () => T,
   ) {
     return this.transaction(() => {
@@ -185,14 +238,14 @@ export class Store {
         return this.replay(prior) as unknown as T;
       }
       const result = run();
-      const revision = Number(result.revision ?? result.version);
+      const revision = result.revision;
       this.insert("requests", [
         actor,
         requestId,
         hash,
         operation,
         revision,
-        issue,
+        null,
       ]);
       this.db
         .prepare(
@@ -268,7 +321,6 @@ export class Store {
       requestId,
       { operation: "configuration", expectedRevision, reviewDigest, c },
       "configuration",
-      null,
       () => {
         const current = this.current();
         if (current !== expectedRevision) fail("REVISION_CONFLICT");
@@ -326,205 +378,191 @@ export class Store {
       },
     );
   }
-  private relatedSessions(issue: string, version: number): RelatedSession[] {
-    const links = this.db
+  private event(eventId: string): CoordinationEvent {
+    const row = this.db
+      .prepare("SELECT * FROM coordination_events WHERE event_id=?")
+      .get(eventId) as Row | undefined;
+    if (!row) fail("EVENT_NOT_FOUND");
+    const optional = (key: string, column: string) =>
+      row[column] === null ? {} : { [key]: String(row[column]) };
+    const evidenceRefs = this.db
       .prepare(
-        "SELECT * FROM issue_sessions WHERE issue=? AND first_version<=? ORDER BY first_version,thread_id,attempt_id",
+        "SELECT reference FROM event_evidence WHERE event_id=? ORDER BY position",
       )
-      .all(issue, version);
-    const sessions = new Map<string, RelatedSession>();
-    for (const link of links) {
-      const threadId = String(link.thread_id);
-      const session = sessions.get(threadId) ?? { threadId, attempts: [] };
-      const latest = this.db
-        .prepare(
-          "SELECT state FROM checkpoints WHERE issue=? AND attempt_id=? AND version<=? ORDER BY version DESC LIMIT 1",
-        )
-        .get(issue, link.attempt_id, version)!;
-      session.attempts.push({
-        attemptId: String(link.attempt_id),
-        phase: String(link.phase),
-        agentId: String(link.agent_id),
-        configurationRevision: Number(link.configuration_revision),
-        state: latest.state as Checkpoint["state"],
-        turnIds: this.db
-          .prepare(
-            "SELECT turn_id FROM issue_session_turns WHERE issue=? AND attempt_id=? AND thread_id=? AND first_version<=? ORDER BY first_version,turn_id",
-          )
-          .all(issue, link.attempt_id, threadId, version)
-          .map((t) => String(t.turn_id)),
-      });
-      sessions.set(threadId, session);
-    }
-    return [...sessions.values()];
-  }
-  checkpoint(
-    issue: string,
-    version?: number,
-  ): {
-    version: number;
-    sessions: RelatedSession[];
-    checkpoint:
-      | (Checkpoint & {
-          agent: Agent;
-          configurationRevision: number;
-          configurationDigest: string;
-          updatedAt: string;
-        })
-      | null;
-  } {
-    const p = (
-      version === undefined
-        ? this.db
-            .prepare(
-              "SELECT * FROM checkpoints WHERE issue=? ORDER BY version DESC LIMIT 1",
-            )
-            .get(issue)
-        : this.db
-            .prepare("SELECT * FROM checkpoints WHERE issue=? AND version=?")
-            .get(issue, version)
-    ) as Row | undefined;
-    if (!p) return { version: 0, checkpoint: null, sessions: [] };
-    const policy = this.policy(Number(p.configuration_revision));
-    const agent = policy.c.agents.find((a) => a.id === p.agent_id);
-    if (!agent) fail("INTEGRITY_FAILURE");
+      .all(eventId)
+      .map((r) => String(r.reference));
+    if (evidenceRefs.length !== row.evidence_count) fail("INTEGRITY_FAILURE");
     return {
-      version: Number(p.version),
-      sessions: this.relatedSessions(issue, Number(p.version)),
-      checkpoint: {
-        attemptId: String(p.attempt_id),
-        phase: String(p.phase),
-        agentId: String(p.agent_id),
-        ownerRef: String(p.owner_ref),
-        scope: String(p.scope),
-        nextCheck: String(p.next_check),
-        state: p.state as Checkpoint["state"],
-        ...(p.thread_id === null ? {} : { threadId: String(p.thread_id) }),
-        ...(p.turn_id === null ? {} : { turnId: String(p.turn_id) }),
-        evidenceRefs: this.db
-          .prepare(
-            "SELECT reference FROM checkpoint_evidence WHERE issue=? AND version=? ORDER BY position",
-          )
-          .all(issue, p.version)
-          .map((e) => String(e.reference)),
-        agent,
-        configurationRevision: Number(p.configuration_revision),
-        configurationDigest: policy.digest,
-        updatedAt: String(p.updated_at),
+      eventId,
+      action: row.action as CoordinationEvent["action"],
+      scope: {
+        type: row.scope_type as CoordinationEvent["scope"]["type"],
+        id: String(row.scope_id),
       },
+      ...optional("issueId", "issue_id"),
+      ...optional("phase", "phase"),
+      reason: String(row.reason),
+      result: String(row.result),
+      outcome: row.outcome as CoordinationEvent["outcome"],
+      observedAt: String(row.observed_at),
+      recordedAt: String(row.recorded_at),
+      producerId: String(row.producer_id),
+      configurationRevision: Number(row.configuration_revision),
+      configurationDigest: this.policy(Number(row.configuration_revision))
+        .digest,
+      ...optional("threadId", "thread_id"),
+      ...optional("turnId", "turn_id"),
+      ...optional("correlationId", "correlation_id"),
+      ...optional("correctsEventId", "corrects_event_id"),
+      evidenceRefs,
     };
   }
-  saveCheckpoint(
-    actor: string,
-    requestId: string,
-    issue: string,
-    expectedVersion: number,
-    expectedRevision: number,
-    input: Checkpoint,
-  ) {
-    const c = checkpointSchema.parse(input);
-    return this.mutate(
-      actor,
-      requestId,
-      { operation: "checkpoint", issue, expectedVersion, expectedRevision, c },
-      "checkpoint",
-      issue,
-      () => {
-        const revision = this.current();
-        if (!revision || revision !== expectedRevision)
-          fail("REVISION_CONFLICT");
-        const policy = this.policy(revision),
-          old = this.checkpoint(issue);
-        if (old.version !== expectedVersion) fail("CHECKPOINT_CONFLICT");
-        const previous = old.checkpoint,
-          same = previous?.attemptId === c.attemptId;
+  appendEvent(actor: string, input: unknown): { event: CoordinationEvent } {
+    const a = appendEventSchema.parse(input);
+    return this.transaction(() => {
+      const hash = digest({ operation: "event", ...a });
+      const prior = this.db
+        .prepare("SELECT * FROM requests WHERE actor=? AND id=?")
+        .get(actor, a.requestId) as Row | undefined;
+      if (prior) {
+        if (prior.operation !== "event" || prior.digest !== hash)
+          fail("IDEMPOTENCY_CONFLICT");
+        return { event: this.event(String(prior.event_id)) };
+      }
+      const revision = this.current();
+      if (!revision || revision !== a.expectedRevision)
+        fail("REVISION_CONFLICT");
+      this.policy(revision);
+      const e = a.event;
+      if (Date.parse(e.observedAt) > Date.now()) fail("FUTURE_OBSERVATION");
+      if (e.correctsEventId) {
+        const original = this.event(e.correctsEventId);
         if (
-          !same &&
-          previous &&
-          !["rejected", "verified"].includes(previous.state)
+          original.scope.type !== e.scope.type ||
+          original.scope.id !== e.scope.id ||
+          original.issueId !== e.issueId
         )
-          fail("UNRESOLVED_ATTEMPT");
-        if (
-          !same &&
-          this.db
-            .prepare(
-              "SELECT 1 FROM checkpoints WHERE issue=? AND attempt_id=? LIMIT 1",
-            )
-            .get(issue, c.attemptId)
+          fail("CORRECTION_SCOPE_MISMATCH");
+      }
+      const eventId = randomUUID(),
+        recordedAt = new Date().toISOString();
+      this.insert("coordination_events", [
+        null,
+        eventId,
+        e.action,
+        e.scope.type,
+        e.scope.id,
+        e.issueId ?? null,
+        e.phase ?? null,
+        e.reason,
+        e.result,
+        e.outcome,
+        e.observedAt,
+        recordedAt,
+        actor,
+        revision,
+        e.threadId ?? null,
+        e.turnId ?? null,
+        e.correlationId ?? null,
+        e.correctsEventId ?? null,
+        e.evidenceRefs.length,
+      ]);
+      e.evidenceRefs.forEach((ref, i) =>
+        this.insert("event_evidence", [eventId, i, ref]),
+      );
+      this.insert("requests", [
+        actor,
+        a.requestId,
+        hash,
+        "event",
+        revision,
+        eventId,
+      ]);
+      this.db
+        .prepare(
+          "INSERT INTO audit(actor,operation,revision,at) VALUES(?,?,?,?)",
         )
-          fail("ATTEMPT_ID_REUSED");
-        if (!same && c.state !== "intended")
-          fail("INTENDED_CHECKPOINT_REQUIRED");
-        if (
-          same &&
-          (previous!.phase !== c.phase ||
-            previous!.agentId !== c.agentId ||
-            previous!.scope !== c.scope ||
-            previous!.ownerRef !== c.ownerRef)
-        )
-          fail("ATTEMPT_IDENTITY_CONFLICT");
-        if (!same && !policy.c.agents.some((a) => a.id === c.agentId))
-          fail("AGENT_UNKNOWN");
-        if (same && c.state === "intended" && previous!.state !== "intended")
-          fail("ATTEMPT_STATE_CONFLICT");
-        if (same && previous!.threadId && previous!.threadId !== c.threadId)
-          fail("THREAD_IDENTITY_CONFLICT");
-        if (same && previous!.turnId && !c.turnId)
-          fail("TURN_EVIDENCE_REQUIRED");
-        const version = expectedVersion + 1;
-        const configurationRevision = same
-          ? previous!.configurationRevision
-          : revision;
-        const observedAt = new Date().toISOString();
-        if (c.threadId) {
-          this.db
-            .prepare("INSERT OR IGNORE INTO sessions VALUES(?,?)")
-            .run(c.threadId, observedAt);
-          this.db
-            .prepare(
-              "INSERT OR IGNORE INTO issue_sessions VALUES(?,?,?,?,?,?,?)",
-            )
-            .run(
-              issue,
-              c.attemptId,
-              c.threadId,
-              c.phase,
-              c.agentId,
-              configurationRevision,
-              version,
-            );
-          if (c.turnId) {
-            this.db
-              .prepare("INSERT OR IGNORE INTO session_turns VALUES(?,?,?)")
-              .run(c.threadId, c.turnId, observedAt);
-            this.db
-              .prepare(
-                "INSERT OR IGNORE INTO issue_session_turns VALUES(?,?,?,?,?)",
-              )
-              .run(issue, c.attemptId, c.threadId, c.turnId, version);
-          }
-        }
-        this.insert("checkpoints", [
-          issue,
-          version,
-          c.attemptId,
-          c.phase,
-          c.agentId,
-          same ? previous!.configurationRevision : revision,
-          c.ownerRef,
-          c.scope,
-          c.nextCheck,
-          c.state,
-          c.threadId ?? null,
-          c.turnId ?? null,
-          new Date().toISOString(),
-        ]);
-        c.evidenceRefs.forEach((ref, i) =>
-          this.insert("checkpoint_evidence", [issue, version, i, ref]),
-        );
-        return this.checkpoint(issue, version);
-      },
+        .run(actor, "event", revision, recordedAt);
+      return { event: this.event(eventId) };
+    });
+  }
+  listEvents(input: unknown = {}): {
+    events: CoordinationEvent[];
+    hasMore: boolean;
+    nextCursor: string | null;
+  } {
+    const a = listEventsSchema.parse(input);
+    const { cursor, limit, ...filters } = a;
+    const storeId = String(
+      this.db.prepare("SELECT value FROM store_identity WHERE id=1").get()!
+        .value,
     );
+    const filterDigest = digest({ storeId, filters });
+    const max = Number(
+      this.db
+        .prepare("SELECT COALESCE(MAX(seq),0) AS n FROM coordination_events")
+        .get()!.n,
+    );
+    let after = 0,
+      through = max;
+    if (cursor) {
+      try {
+        const parsed = z
+          .object({
+            v: z.literal(1),
+            after: z.number().int().nonnegative(),
+            through: z.number().int().nonnegative(),
+            filterDigest: z.string(),
+          })
+          .strict()
+          .parse(JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")));
+        if (
+          parsed.filterDigest !== filterDigest ||
+          parsed.after > parsed.through ||
+          parsed.through > max
+        )
+          fail("INVALID_CURSOR");
+        after = parsed.after;
+        through = parsed.through;
+      } catch {
+        fail("INVALID_CURSOR");
+      }
+    }
+    const clauses = ["seq>?", "seq<=?"],
+      values: SQLInputValue[] = [after, through];
+    for (const [key, column, op] of [
+      ["issueId", "issue_id", "="],
+      ["scopeType", "scope_type", "="],
+      ["scopeId", "scope_id", "="],
+      ["action", "action", "="],
+      ["from", "observed_at", ">="],
+      ["to", "observed_at", "<="],
+    ] as const)
+      if (filters[key] !== undefined) {
+        clauses.push(`${column}${op}?`);
+        values.push(filters[key]);
+      }
+    const rows = this.db
+      .prepare(
+        `SELECT seq,event_id FROM coordination_events WHERE ${clauses.join(" AND ")} ORDER BY seq ASC LIMIT ?`,
+      )
+      .all(...values, limit + 1);
+    const hasMore = rows.length > limit,
+      page = rows.slice(0, limit);
+    return {
+      events: page.map((r) => this.event(String(r.event_id))),
+      hasMore,
+      nextCursor: hasMore
+        ? Buffer.from(
+            JSON.stringify({
+              v: 1,
+              after: Number(page.at(-1)!.seq),
+              through,
+              filterDigest,
+            }),
+          ).toString("base64url")
+        : null,
+    };
   }
   async backup(path: string) {
     await backup(this.db, path);

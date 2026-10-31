@@ -3,7 +3,7 @@
 One company, one service instance, one dedicated local SQLite volume. SQLite WAL,
 FULL synchronization and immediate transactions fit the low-write configuration
 workload. Do not use a network filesystem or independently writable replicas.
-Policy, idempotency responses, checkpoint history and audit metadata persist on
+Policy, idempotency responses, coordination history and audit metadata persist on
 `/data`. This database contains private plaintext policy/evidence; protect the host,
 volume and backups. It is not a credential vault. There is no automatic CI deploy.
 
@@ -23,7 +23,7 @@ volume and backups. It is not a credential vault. There is no automatic CI deplo
    the selected unused port. Do not reuse the alerts volume, Access audience or port.
 3. Set `PUBLIC_ORIGIN`, `CF_ACCESS_ISSUER`, `CF_ACCESS_AUD` from the actual dedicated
    authenticated route. `READ_EMAILS` permits company reads; `ADMIN_EMAILS` permits
-   policy changes; `CHECKPOINT_EMAILS` permits checkpoint changes. Every writer must
+   policy changes; `EVENT_EMAILS` permits event appends. Every writer must
    also be a reader. These role bindings are private operator configuration, not
    writable MCP policy. Removing an identity takes effect on requests after the
    operator reloads service configuration. JWT expiry is checked on every request.
@@ -58,15 +58,15 @@ The command refuses an existing target and verifies integrity. Copy completed
 snapshots to protected off-host storage using the operator's approved procedure;
 set retention and backup cadence there. No automatic backup scheduler is installed.
 Exercise restore into a separate private volume with no production ingress, then
-check policy revision, checkpoints and idempotent retry results before acceptance.
+check policy revision, events and idempotent retry results before acceptance.
 
 Before upgrade, take and verify a backup, record the immutable old image and stop
-new dispatch at a safe checkpoint. Never run two versions against this volume.
+new dispatch at an evidenced safe boundary. Never run two versions against this volume.
 An image rollback does not reverse configuration or external effects. A snapshot
 restore can lose newer evidence: reconcile actual sessions and effects before any
 retry, and explicitly revalidate the restored revision/digest against task evidence.
 A policy correction is a reviewed new revision, never an in-place revision rewrite.
-Do not delete the volume during container replacement. Existing checkpoint/audit
+Do not delete the volume during container replacement. Existing event/audit
 history has no automatic pruning; observe disk usage and choose an explicit private
 retention policy before long-term growth becomes material.
 
@@ -80,3 +80,29 @@ in a fresh conversation. Local SDK tests do not establish installed-host behavio
 
 See [OpenAI connection testing](https://developers.openai.com/plugins/deploy/connect-chatgpt)
 for the client connection and verification flow.
+
+## Clean schema replacement
+
+This event schema requires a clean dedicated CEO database. There is no legacy data
+migration, compatibility endpoint or fabricated history. For an explicitly authorized
+reset, first privately verify the exact CEO service, database path and mounted volume
+against inspection; stop that service, verify the backup and preserve the approved
+inactive policy values outside source. Reset only that identified CEO database,
+including its WAL/SHM companions, following the operator's reviewed exact-target plan.
+Never select a volume by an assumed name or touch another service's data.
+
+Start the reviewed image against the empty database, set the separate `EVENT_EMAILS`
+operator binding, and restore only the previously approved inactive configuration
+through the reviewed configuration API. Verify revision/digest and all approved
+values, `active=false`, `executionEnabled=false`, empty agents, and empty history.
+Do not reactivate operations, configure agents or create schedules as part of reset.
+Old backups require the matching old image for isolated inspection; never run it
+against the new live database or treat an old backup as an event migration.
+
+Before closing delivery, verify the same installed plugin identity loads these skills
+and readable skill-local references, advertises the new APIs and authenticates on the
+real host. Test an actual coordinator and an actual implementation executor's event
+producer/authority, real returned thread/turn IDs, and release-to-original-session
+notification/resumption. Preserve precise unsupported/denied/uncertain results.
+Local SDK fixtures do not satisfy these gates. Update installed skills separately;
+this repository contains no plugin packaging manifest or installation archive.

@@ -25,11 +25,11 @@
     ],
     "expected": [
       "Establish In Progress and verify readback before dependent release mutations; uncertainty does not pass. Already-authorized read-only diagnostics may continue within scope with truthful bookkeeping and later reconciliation.",
-      "Preserve and verify evidenced delivery phase for merged/observing issues, record owner and checkpoint rather than regress phase"
+      "Preserve and verify evidenced delivery phase for merged/observing issues, record owner and event rather than regress phase"
     ]
   },
   {
-    "name": "dispatch-checkpoint",
+    "name": "dispatch-event",
     "skills": [
       "delegate",
       "reconcile-execution"
@@ -40,9 +40,9 @@
       "Contrast authoritative non-submission rejection with unknown occurrence; explain what the pre-dispatch record guarantees."
     ],
     "expected": [
-      "No dispatch before verified recoverable intended-attempt evidence with issue/checkpoint/settings/destination/owner",
-      "Recover same checkpoint, correlate sessions/results; timeout plus empty list remains uncertain without blind retry",
-      "Known rejection differs from uncertain occurrence; checkpoint is not proof of submission or an atomic/exactly-once transaction"
+      "No dispatch before verified recoverable intended-attempt evidence with issue/configuration/template/destination/owner references",
+      "Read all issue event pages, correlate actual sessions/results; timeout plus empty list remains uncertain without blind retry",
+      "Known rejection differs from uncertain occurrence; event is not proof of submission or an atomic/exactly-once transaction"
     ]
   },
   {

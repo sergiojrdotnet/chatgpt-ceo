@@ -1,67 +1,90 @@
 ---
 name: conduct-release
-description: Prepare, execute and verify an authorized exact-version release at intended destinations, including review/CI, recovery and post-publication observation. Not ordinary code preparation.
+description: Coordinate a separate exact-version release batch from Linear Awaiting Release through verified publication and handoff to original implementation sessions for functional validation.
 ---
 
 # Conduct release
 
-Owner: release executor, preferably the implementation owner. Inputs: issue ID,
-exact revision/artifacts, destinations and publication authority. Outcome: verified
-delivery and observation, or precise remaining release/validation gaps.
+Owner: release coordinator and a separately assigned release executor. Inputs:
+current Linear Awaiting Release work, approved publication scope and destinations.
+Outcome: evidenced per-issue publication and implementation-validation handoff,
+or explicit partial, failed, blocked or uncertain results.
 
-Configuration: call `get_operation_context`, then `get_release_policy` as needed.
-Use the same revision for all configuration reads; follow the linked contract.
+Configuration: call `get_operation_context`, then `get_release_policy`,
+`get_selection_policy` and `get_agents` as needed at the same revision.
+Follow the [configuration contract](../../references/configuration.md).
 
-1. Read the full issue and relevant comments/references, product release/runbook,
-   architecture, safety and target-binding instructions. Refresh the
-   [configuration contract](../../references/configuration.md). Confirm exact scope,
-   destinations/dependencies and authority; reading access does not grant writes.
-   Follow applicable technical publication instructions supplied by the configured
-   agent or project, including a repository skill when those instructions require
-   one. This plugin does not assume every repository has a release skill. Keep
-   application-specific versioning/build/publication mechanics in those technical
-   instructions; do not duplicate them here. Missing required technical guidance
-   blocks dependent publication rather than authorizing an invented procedure.
-   At actual execution start, read the current Linear state. For a standalone
-   release task, establish In Progress before substantive work and verify readback.
-   For an already merged issue awaiting publication, preserve and verify Awaiting
-   Release instead of regressing its delivery phase; record the active release
-   owner/checkpoint in its comment. Likewise retain an evidenced In Validation
-   phase during observation. Consultation alone does not start execution. If a
-   required state write/readback fails or is uncertain, report the gap and resolve
-   actual state before dependent release mutations; never claim a successful transition.
-   Already-authorized read-only diagnostics/monitoring may continue within scope;
-   report the bookkeeping gap and reconcile it later without duplicating an uncertain write.
-2. Follow configured agent and repository review/CI/merge policy, resolving conflicts
-   before dependent publication; do not impose a global provider or merge method.
-   Verify required CI and completed independent review cover the exact current
-   revision, with findings/conversations addressed and acceptance/docs consistent.
-   Zero unresolved threads is not proof a review ran. Do not assume events reach
-   the owner. Follow approved merge policy only when authorized; merge is not Done.
-3. Prefer small incremental releases when they reduce impact and can be validated
-   independently; this is a planning preference, not a mandatory size gate.
-   Assess migrations/configuration, compatibility, backup preconditions and recovery
-   limits. Image rollback does not revert database/configuration. Obtain a fresh
-   baseline with [monitor-system](../monitor-system/SKILL.md); investigate unhealthy
-   or stale evidence. Check private restricted windows, actual traffic, rollout,
-   validation, observation minimum and reasoned recovery margin fit. No invented
-   duration constants. Isolation/restoration exceptions require applicable evidence.
-4. Follow the authorized workflow and actual destination together: migrations,
-   services, versions, errors, latency/connectivity and alerts. A trigger, green
-   workflow, uploaded artifact or image is not destination installation. Respect
-   test authority; do not invent live physical-access actions.
-5. Confirm actual destination/version and unambiguous publication time in Linear;
-   apply [state evidence](../../references/state-evidence.md) with readback. Artifact-only
-   publication retains its narrower outcome. Monitor throughout rollout and for the
-   required minimum AFTER deployment completes. Functional validation may overlap;
-   interruptions and missing intervals are coverage gaps, not elapsed-time success.
-6. On regression prefer a corrective deploy when it can safely restore service
-   faster than rollback. Compare impact, confidence, recovery time, data/migration
-   constraints and rollback limits; use rollback when it is the better recovery.
-   Respect recovery already performed by the workflow. Verify restoration and
-   continue required observation.
-   Do not change security/review settings to force progress or abandon a failed run.
+Coordinator and executor paths are distinct. The coordinator owns batch selection,
+planning, assignment and implementation-session handoff. An already assigned release
+executor reads its authorized plan and exact issue scope, verifies current policy and
+technical prerequisites, then executes the supplied repository release procedure and
+returns publication/observation evidence (step 5). It does not select a new batch,
+repeat step 4, or create another release session. It reports changed scope/conflicts
+to the coordinator before dependent mutations. The coordinator resumes steps 6–7.
 
-Handoff: [reconcile-execution](../reconcile-execution/SKILL.md) verifies acceptance,
-observation and no unresolved critical regression before Done;
-[coordinate-incidents](../coordinate-incidents/SKILL.md) owns material service impact.
+1. Read current Awaiting Release issues in Linear, their full descriptions,
+   acceptance, comments and references. Select an authorized bounded batch after
+   assessing actual capacity, dependencies, conflicting changes, exact versions,
+   application order, destinations and impact. Do not assume every waiting issue
+   can ship together. Inspect issue history for an existing active release owner
+   before creating another session. Future periodic selection is a user-defined
+   external trigger; this skill creates no schedule or scheduler definition.
+2. Read technical release instructions from the selected configured agent and
+   applicable repository procedures, including any release skill they require.
+   Those instructions own builds, review/CI/merge rules, artifacts, deployment,
+   migrations and technical recovery. Do not duplicate or invent those mechanics
+   here. Missing guidance blocks dependent publication. Require exact-current-head
+   CI and actual independent review evidence; zero unresolved threads alone is not
+   proof of review. Configuration/read access supplies no publication authority.
+3. Prepare a concrete exact-version/destination plan with per-issue impact,
+   dependencies/conflicts and order, compatibility/data/configuration changes,
+   backup prerequisites, verification and recovery options. Compare rollout,
+   functional validation, required observation and reasoned recovery margin against
+   restricted windows and actual traffic; no invented duration constants.
+   Use [monitor-system](../monitor-system/SKILL.md) for fresh baseline evidence.
+   Prefer small releases when they reduce impact and remain independently testable.
+   Append per-issue `release-plan` events with a shared `correlationId`, reason,
+   approved plan references and honest outcome. Resolve actual reserved decisions
+   using the concrete plan; existing authorization persists.
+4. As coordinator, assign the release executor through [delegate](../delegate/SKILL.md), preserving
+   the whole selected template and repository instructions. Use a separate release
+   session; preserve original implementation session IDs in issue history. Shared
+   batch events use one actual release thread ID per event and the common
+   correlation ID. Retain Awaiting Release while publication is pending; a standalone
+   release task enters In Progress at actual start. Verify Linear state readback.
+   A state-write gap does not prevent authorized read-only diagnostics, but must
+   be resolved before dependent publication mutations.
+5. Follow the authorized execution to actual destination/version and publication
+   time. Green workflows, uploaded images or triggers alone do not prove installation.
+   Append `publication` events for each issue/destination outcome, with exact version,
+   destination and timestamp evidence. Keep partial releases and unknown outcomes
+   explicit; do not claim the entire batch succeeded. Follow required observation
+   after deployment completes; missing intervals are coverage gaps. On regression,
+   prefer a quick safe correction when confidence, impact and recovery time justify
+   it; otherwise use the better recovery option, including rollback. Image rollback
+   cannot undo data/configuration changes. Verify restoration and route material
+   impact to [coordinate-incidents](../coordinate-incidents/SKILL.md).
+6. Only after confirmed publication, read all pages of
+   `list_coordination_events({issueId})` for each published issue. Locate original
+   implementation sessions by phase and actual IDs, check linked corrections and
+   current runtime availability/ownership, and notify/resume the responsible session
+   with exact published version, destination, time and evidence plus remaining
+   acceptance. Inspect earlier handoff events and actual session state before
+   dispatch to avoid duplicates. Append a `handoff` event after each observed result,
+   preserving the actual target thread and returned turn when available. A timeout
+   is `uncertain`; inspect the target before retrying. Unavailable sessions require
+   a documented blocked handoff and an authorized replacement via delegate, not
+   invented resumption or completion. Real host support/access must be tested.
+7. Original implementation owners perform post-publication functional validation
+   against each issue's acceptance and publish `validation` events with evidence.
+   Apply [state evidence](../../references/state-evidence.md): In Validation while
+   checking, Done only after acceptance and required observation are proved with
+   no unresolved critical regression. Batch release success does not validate each
+   issue. A coordinator may relay sourced results under its own identity as described
+   in the [event contract](../../references/coordination-events.md), never impersonate
+   an executor. Missing authenticated event access remains a reported host gate.
+
+Use `append_coordination_event` at the plan, publication, handoff and validation
+moments above; the [event contract](../../references/coordination-events.md) owns
+payload/retry/attribution rules. [Reconcile execution](../reconcile-execution/SKILL.md)
+checks each issue's evidence, remaining ownership and truthful Linear state.

@@ -42,3 +42,9 @@ Use the same revision for all configuration reads; follow the linked contract.
 Administrative timing is a preference. Missing input blocks dependent work only.
 Handoff: [reconcile-execution](../reconcile-execution/SKILL.md); separately scope
 actual software changes through [prepare-code-change](../prepare-code-change/SKILL.md).
+
+Append `administration` events through `append_coordination_event` for material
+authorized decisions and saved-result verification, including blocked/uncertain
+effects. Use protected record references, never raw financial details.
+Follow the [event contract](../../references/coordination-events.md) for payload,
+attribution and recovery.

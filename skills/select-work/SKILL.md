@@ -39,3 +39,9 @@ Use the same revision for all configuration reads; follow the linked contract.
 Handoff: [delegate](../delegate/SKILL.md) resolves capabilities and dispatches;
 [coordinate-incidents](../coordinate-incidents/SKILL.md) owns urgent response.
 Selection alone does not establish In Progress.
+
+Append a `selection` event through `append_coordination_event` for meaningful
+selection or deferral, recording the capacity/dependency reason and observed result.
+An unchanged poll does not need an event.
+Follow the [event contract](../../references/coordination-events.md) for payload,
+attribution and recovery.

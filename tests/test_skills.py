@@ -38,3 +38,21 @@ class Skills(unittest.TestCase):
     def test_preserved_process_scenarios(self):
         for name in ('skill_scenarios.json', 'composition_regressions.json'):
             self.assertTrue(json.loads((ROOT / 'tests' / name).read_text()))
+
+    def test_history_and_release_boundaries(self):
+        for path in list((ROOT / 'skills').glob('*/SKILL.md')) + list((ROOT / 'references').glob('*.md')):
+            content = path.read_text()
+            self.assertNotIn('get_checkpoint', content)
+            self.assertNotIn('save_checkpoint', content)
+        prepare = (ROOT / 'skills/prepare-code-change/SKILL.md').read_text()
+        self.assertNotIn('review/CI/merge', prepare)
+        self.assertNotIn('conduct-release', prepare)
+        release = (ROOT / 'skills/conduct-release/SKILL.md').read_text()
+        for boundary in ('Awaiting Release', 'separate release', 'original implementation',
+                         'list_coordination_events', 'append_coordination_event',
+                         'correlationId', 'uncertain', 'Real host', 'no schedule',
+                         'already assigned release', 'repeat step 4'):
+            self.assertIn(boundary, release)
+        for name in ('plan', 'select-work', 'delegate', 'reconcile-execution',
+                     'conduct-release', 'coordinate-incidents', 'operate-administration', 'setup'):
+            self.assertIn('append_coordination_event', (ROOT / f'skills/{name}/SKILL.md').read_text())

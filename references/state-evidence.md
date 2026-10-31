@@ -16,7 +16,7 @@ This exception grants no mutation, recovery, dispatch or publication authority.
 | In Progress | Actual execution; draft PR remains here. |
 | In Review | Deliverable ready for genuine independent review. |
 | Awaiting Release | Merged code with actual publication still pending. |
-| In Validation | Intended publication confirmed, or administrative result undergoing acceptance verification. |
+| In Validation | Intended publication confirmed and implementation owner checking functional acceptance, or administrative result undergoing verification; no publication required when the issue explicitly needs none. |
 | Done | Acceptance and intended outcome evidenced; required observation complete; no unresolved critical regression. |
 | Canceled / Duplicate | Recorded reason / canonical issue link; neither is delivered work. |
 
@@ -30,3 +30,7 @@ record evidence, acceptance comparison, remaining gap, next owner/action. Distin
 requested from observed model/effort and failed/denied/pending/uncertain effects.
 Use audience-safe references, never full private configurations, source documents,
 credentials or sensitive raw payloads. Opaque IDs can still be sensitive.
+
+Confirmed coordination events are evidence of their stated actions only. Publication
+returns validation ownership to the original implementation session; release-batch
+completion cannot close individual issues without their own acceptance proof.

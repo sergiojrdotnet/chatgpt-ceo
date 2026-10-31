@@ -33,7 +33,7 @@ const application = app({
   audience: required("CF_ACCESS_AUD"),
   readers: emails("READ_EMAILS"),
   admins: emails("ADMIN_EMAILS"),
-  checkpointWriters: emails("CHECKPOINT_EMAILS"),
+  eventWriters: emails("EVENT_EMAILS"),
   databasePath: required("DATABASE_PATH"),
 });
 const port = Number(process.env.PORT ?? "3000");
