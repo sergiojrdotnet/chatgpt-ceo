@@ -53,8 +53,12 @@ Use the same revision for all configuration reads; follow the linked contract.
    administration invokes [operate-administration](../operate-administration/SKILL.md);
    publication invokes [conduct-release](../conduct-release/SKILL.md). Other work
    names its applicable process. Do not repeat objective/acceptance from the issue.
-6. Append returned session identity, response and observed effective metadata
-   (unknown when absent) to that attempt; verify the record. Pass only necessary
+6. Use `save_checkpoint` to record the actual returned `threadId` (stable session)
+   and `turnId` (specific turn, when returned), response and observed effective
+   metadata (unknown when absent); verify with `get_checkpoint`. Never invent IDs.
+   If creation succeeds but saving fails, retain those returned IDs in protected
+   task evidence and inspect that existing thread before retrying any dispatch.
+   Pass only necessary
    private context. A known rejection is not submission; a timeout, missing response
    or failed post-send record leaves dispatch uncertain until reconciled. Inspect
    actual sessions/results before retrying; an empty session list alone is not

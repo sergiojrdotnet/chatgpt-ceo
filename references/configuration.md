@@ -31,7 +31,13 @@ Use `get_checkpoint(issueId)` before dispatch/retry and after interruption.
 current `expectedRevision` and a stable `requestId`. First save an `intended`
 attempt with scope, agent ID, owner and next check; the server snapshots its whole
 agent template and configuration revision/digest. Verify readback before sending.
-After sending, save the observed state/session/evidence and verify readback. Unknown
+After sending, save actual returned `threadId` and, when returned, `turnId` in
+separate fields alongside observed state/evidence; verify readback. `threadId` is
+the stable session identifier; `turnId` identifies one execution turn and may change
+on a verified continuation. Preserve known thread identity and turn evidence in
+later updates. These references do not guarantee transcript retention or continued
+access. Never invent identifiers or create another session because a checkpoint
+save failed after successful creation; query the returned thread first. Unknown
 occurrence remains `uncertain`; failed readback or an empty session list is not
 proof of rejection. Reconcile actual session/effect before another attempt.
 

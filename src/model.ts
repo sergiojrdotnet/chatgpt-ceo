@@ -138,20 +138,26 @@ export const checkpointSchema = z
       "blocked",
       "failed",
     ]),
-    sessionRef: z.string().trim().min(1).max(500).optional(),
+    threadId: identifier.optional(),
+    turnId: identifier.optional(),
     evidenceRefs: z.array(z.string().trim().min(1).max(500)).max(30),
   })
   .strict()
   .superRefine((c, ctx) => {
+    if (c.turnId && !c.threadId)
+      ctx.addIssue({
+        code: "custom",
+        message: "Turn ID requires its thread ID",
+      });
     if (["verified", "rejected"].includes(c.state) && !c.evidenceRefs.length)
       ctx.addIssue({
         code: "custom",
         message: "Terminal outcome requires evidence references",
       });
-    if (c.state === "submitted" && !c.sessionRef)
+    if (c.state === "submitted" && !c.threadId)
       ctx.addIssue({
         code: "custom",
-        message: "Submitted outcome requires session reference",
+        message: "Submitted outcome requires the returned thread ID",
       });
   });
 export type Checkpoint = z.infer<typeof checkpointSchema>;

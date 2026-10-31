@@ -16,7 +16,11 @@ Use the same revision for all configuration reads; follow the linked contract.
 1. Read the complete current issue and relevant comments; refresh the
    [configuration contract](../../references/configuration.md) before dependent
    resumption, consequential action or completion. Preserve pause and authority.
-2. Compare actual session state and timestamps with claimed progress. Inspect exact
+2. Read `get_checkpoint(issueId)` and use its actual `threadId` to query or resume
+   the existing session through available runtime tools. `turnId` identifies a
+   specific turn, not another session. Verify current access/state; retained IDs
+   do not guarantee transcript retention or future availability. Do not create a
+   replacement merely because a read fails. Compare session timestamps with claimed progress. Inspect exact
    PR head, completed independent review, findings and CI when applicable; for
    administration inspect bounded saved-state evidence. Read the authoritative
    result, not just a callback, tool success or executor narrative.

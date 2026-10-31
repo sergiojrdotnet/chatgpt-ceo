@@ -28,7 +28,7 @@ export class Store {
       CREATE TABLE IF NOT EXISTS agents(revision INTEGER NOT NULL REFERENCES policy(revision),id TEXT NOT NULL,position INTEGER NOT NULL CHECK(position>=0),name TEXT NOT NULL,description TEXT NOT NULL,instructions TEXT NOT NULL,model TEXT NOT NULL,effort TEXT NOT NULL CHECK(effort IN('low','medium','high','xhigh','max','ultra')),environment TEXT,PRIMARY KEY(revision,id),UNIQUE(revision,position)) STRICT;
       CREATE TABLE IF NOT EXISTS release_windows(revision INTEGER NOT NULL REFERENCES policy(revision),position INTEGER NOT NULL CHECK(position>=0),start TEXT NOT NULL,end TEXT NOT NULL CHECK(end>start),PRIMARY KEY(revision,position)) STRICT;
       CREATE TABLE IF NOT EXISTS release_days(revision INTEGER NOT NULL,window_position INTEGER NOT NULL,position INTEGER NOT NULL CHECK(position>=0),weekday INTEGER NOT NULL CHECK(weekday BETWEEN 1 AND 7),PRIMARY KEY(revision,window_position,position),UNIQUE(revision,window_position,weekday),FOREIGN KEY(revision,window_position) REFERENCES release_windows(revision,position)) STRICT;
-      CREATE TABLE IF NOT EXISTS checkpoints(issue TEXT NOT NULL,version INTEGER NOT NULL CHECK(version>0),attempt_id TEXT NOT NULL,agent_id TEXT NOT NULL,configuration_revision INTEGER NOT NULL,owner_ref TEXT NOT NULL,scope TEXT NOT NULL,next_check TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN('intended','submitted','uncertain','rejected','verified','blocked','failed')),session_ref TEXT,updated_at TEXT NOT NULL,PRIMARY KEY(issue,version),FOREIGN KEY(configuration_revision,agent_id) REFERENCES agents(revision,id)) STRICT;
+      CREATE TABLE IF NOT EXISTS checkpoints(issue TEXT NOT NULL,version INTEGER NOT NULL CHECK(version>0),attempt_id TEXT NOT NULL,agent_id TEXT NOT NULL,configuration_revision INTEGER NOT NULL,owner_ref TEXT NOT NULL,scope TEXT NOT NULL,next_check TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN('intended','submitted','uncertain','rejected','verified','blocked','failed')),thread_id TEXT,turn_id TEXT CHECK(turn_id IS NULL OR thread_id IS NOT NULL),updated_at TEXT NOT NULL,PRIMARY KEY(issue,version),FOREIGN KEY(configuration_revision,agent_id) REFERENCES agents(revision,id)) STRICT;
       CREATE TABLE IF NOT EXISTS checkpoint_evidence(issue TEXT NOT NULL,version INTEGER NOT NULL,position INTEGER NOT NULL CHECK(position>=0),reference TEXT NOT NULL,PRIMARY KEY(issue,version,position),FOREIGN KEY(issue,version) REFERENCES checkpoints(issue,version)) STRICT;
       CREATE TABLE IF NOT EXISTS requests(actor TEXT NOT NULL,id TEXT NOT NULL,digest TEXT NOT NULL,operation TEXT NOT NULL CHECK(operation IN('configuration','checkpoint')),result_revision INTEGER NOT NULL,issue TEXT,PRIMARY KEY(actor,id)) STRICT;
       CREATE TABLE IF NOT EXISTS audit(seq INTEGER PRIMARY KEY,actor TEXT NOT NULL,operation TEXT NOT NULL,revision INTEGER NOT NULL,at TEXT NOT NULL) STRICT;`);
@@ -349,9 +349,8 @@ export class Store {
         scope: String(p.scope),
         nextCheck: String(p.next_check),
         state: p.state as Checkpoint["state"],
-        ...(p.session_ref === null
-          ? {}
-          : { sessionRef: String(p.session_ref) }),
+        ...(p.thread_id === null ? {} : { threadId: String(p.thread_id) }),
+        ...(p.turn_id === null ? {} : { turnId: String(p.turn_id) }),
         evidenceRefs: this.db
           .prepare(
             "SELECT reference FROM checkpoint_evidence WHERE issue=? AND version=? ORDER BY position",
@@ -417,6 +416,10 @@ export class Store {
           fail("AGENT_UNKNOWN");
         if (same && c.state === "intended" && previous!.state !== "intended")
           fail("ATTEMPT_STATE_CONFLICT");
+        if (same && previous!.threadId && previous!.threadId !== c.threadId)
+          fail("THREAD_IDENTITY_CONFLICT");
+        if (same && previous!.turnId && !c.turnId)
+          fail("TURN_EVIDENCE_REQUIRED");
         const version = expectedVersion + 1;
         this.insert("checkpoints", [
           issue,
@@ -428,7 +431,8 @@ export class Store {
           c.scope,
           c.nextCheck,
           c.state,
-          c.sessionRef ?? null,
+          c.threadId ?? null,
+          c.turnId ?? null,
           new Date().toISOString(),
         ]);
         c.evidenceRefs.forEach((ref, i) =>

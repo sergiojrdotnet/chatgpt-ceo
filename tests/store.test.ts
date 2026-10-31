@@ -273,3 +273,60 @@ test("unsafe JSON integers never commit an unreadable configuration revision", (
     s.close();
   }
 });
+test("real-shaped thread and turn identifiers persist separately across restart and cannot be silently lost", () => {
+  const dir = mkdtempSync(join(tmpdir(), "ceo-identifiers-"));
+  const path = join(dir, "db.sqlite");
+  let s = new Store(path);
+  try {
+    const c = fixture();
+    s.update("admin", "setup", 0, digest(c), c);
+    s.saveCheckpoint("writer", "intent", "SYN-1", 0, 1, checkpoint);
+    const submitted = {
+      ...checkpoint,
+      state: "submitted" as const,
+      threadId: "synthetic-thread-1",
+      turnId: "synthetic-turn-1",
+    };
+    s.saveCheckpoint("writer", "submitted", "SYN-1", 1, 1, submitted);
+    assert.throws(
+      () =>
+        s.saveCheckpoint("writer", "drop-thread", "SYN-1", 2, 1, {
+          ...checkpoint,
+          state: "uncertain",
+        }),
+      /THREAD_IDENTITY_CONFLICT/,
+    );
+    assert.throws(
+      () =>
+        s.saveCheckpoint("writer", "other-thread", "SYN-1", 2, 1, {
+          ...submitted,
+          threadId: "synthetic-thread-2",
+        }),
+      /THREAD_IDENTITY_CONFLICT/,
+    );
+    s.close();
+    s = new Store(path);
+    assert.equal(
+      s.checkpoint("SYN-1").checkpoint!.threadId,
+      submitted.threadId,
+    );
+    assert.equal(s.checkpoint("SYN-1").checkpoint!.turnId, submitted.turnId);
+    s.saveCheckpoint("writer", "continuation", "SYN-1", 2, 1, {
+      ...submitted,
+      turnId: "synthetic-turn-2",
+    });
+    assert.equal(
+      s.checkpoint("SYN-1").checkpoint!.threadId,
+      submitted.threadId,
+    );
+    assert.equal(s.checkpoint("SYN-1").checkpoint!.turnId, "synthetic-turn-2");
+    // A delayed identical retry of the original successful save returns its version, not a new dispatch.
+    assert.equal(
+      s.saveCheckpoint("writer", "submitted", "SYN-1", 1, 1, submitted).version,
+      2,
+    );
+  } finally {
+    s.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
