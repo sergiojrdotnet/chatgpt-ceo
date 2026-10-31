@@ -111,6 +111,18 @@ class Validation(unittest.TestCase):
             with self.assertRaisesRegex(p.PolicyError, 'INVALID_WINDOW'):
                 p.validate(value)
 
+    def test_time_fields_reject_trailing_newlines(self):
+        for group in ('administrativeHours', 'restrictedWindows'):
+            for field in ('start', 'end'):
+                for suffix in ('\n', '\r\n'):
+                    value = fixture()
+                    target = (value['selection'][group] if group == 'administrativeHours'
+                              else value['release'][group][0])
+                    target[field] += suffix
+                    with self.subTest(group=group, field=field, suffix=repr(suffix)):
+                        with self.assertRaisesRegex(p.PolicyError, 'INVALID_SCHEMA'):
+                            p.validate(value)
+
     def test_window_conflicts(self):
         for window in [dict(weekdays=[2], start='12:30', end='14:00'),
                        dict(weekdays=[2, 2], start='15:00', end='16:00'),
@@ -269,6 +281,21 @@ class Decisions(unittest.TestCase):
             with self.subTest(inputs=inputs):
                 self.assertEqual(self.decide(**inputs)[1], reason)
 
+    def test_low_activity_preference_respects_profile_switch(self):
+        for enabled in (True, False):
+            value = fixture()
+            value['selection']['lowSchoolActivityPreference'] = enabled
+            facts = dict(authorized=True, route='general', task_class='analysis',
+                         available_environments=('synthetic-cloud-a',),
+                         available_models=(('synthetic-model-a', 'medium'),),
+                         low_activity=True, independent_alternative=True)
+            with self.subTest(enabled=enabled):
+                self.assertEqual(p.simulate(value, **facts)[1],
+                                 'PREFER_INDEPENDENT' if enabled else 'SIMULATION_ONLY')
+                # Human-input dependency remains a separate preference.
+                self.assertEqual(p.simulate(value, likely_input_dependency=True, **facts)[1],
+                                 'PREFER_INDEPENDENT')
+
     def test_no_implicit_route_or_truthy_authority(self):
         self.assertEqual(self.decide(route=None)[1], 'ROUTE_MISSING')
         self.assertEqual(self.decide(authorized='false')[1], 'INVALID_CONTEXT')
@@ -312,6 +339,12 @@ class OutcomeBoundaries(unittest.TestCase):
 
     def test_pending_review_prevents_done(self):
         self.assertEqual(self.outcome(pending_review=True), 'blocked')
+
+    def test_outcome_classifier_rejects_nonboolean_facts(self):
+        for field in ('attempted', 'response_uncertain', 'acceptance_met', 'pending_review'):
+            for invalid in (None, 0, 1, '', 'false', [], {}):
+                with self.subTest(field=field, invalid=invalid):
+                    self.assertEqual(self.outcome(**{field: invalid}), 'blocked')
 
     def test_unknown_or_missing_attempt_stops(self):
         self.assertEqual(self.outcome(attempted=False), 'blocked')

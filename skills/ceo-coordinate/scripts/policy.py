@@ -201,7 +201,8 @@ def simulate(policy, *, authorized=False, paused=False, scoped_exception=False,
         return 'stop', 'MODEL_UNAVAILABLE'
     if release_required and release_fits is not True and not restoration_exception:
         return 'defer', 'RELEASE_ASSESSMENT_REQUIRED'
-    if independent_alternative and (low_activity or likely_input_dependency):
+    prefer_low_activity = policy['selection']['lowSchoolActivityPreference'] and low_activity
+    if independent_alternative and (prefer_low_activity or likely_input_dependency):
         return 'preferAlternative', 'PREFER_INDEPENDENT'
     return 'eligible', 'SIMULATION_ONLY'
 
@@ -214,11 +215,14 @@ def reconcile_attempt(*, attempted, response_uncertain, readback, acceptance_met
     A matching readback may resolve a lost response. Absence never clears an
     uncertain attempt. Callers must recover protected attempt evidence on restart.
     """
+    if any(type(fact) is not bool for fact in
+           (attempted, response_uncertain, acceptance_met, pending_review)):
+        return 'blocked'
     if readback not in ('matching', 'absent', 'conflicting', 'failed'):
         return 'blocked'
     if attempted is not True:
         return 'blocked'
-    if readback == 'matching' and acceptance_met is True and not pending_review:
+    if readback == 'matching' and acceptance_met is True and pending_review is False:
         return 'verified'
     if response_uncertain is True:
         return 'uncertain'
