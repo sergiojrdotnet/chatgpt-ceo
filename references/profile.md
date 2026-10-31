@@ -7,6 +7,11 @@ revision (monotonic integer), plugin SemVer and the host content version/ETag.
 The [inactive examples](../examples/inactive-a.json) and
 [second isolated fixture](../examples/inactive-b.json) contain fictional values.
 They are intentionally inactive, fixture-only and execution-disabled.
+`fixtureOnly` marks synthetic/test-only policy data; it is not a platform setting
+or an authority grant. `agreement` records source-agreement provenance, not runtime
+permission. Its reference does not require an external document read on every
+invocation: use the approved current profile and task authority, consulting source
+agreement material only when needed to resolve a relevant gap or conflict.
 
 The storage boundary is an explicit read input/adapter contract,
 not a production storage choice. An authorized host reader may supply a fresh,
@@ -51,9 +56,16 @@ only. The helper rejects ALL live dispatch, including permissive profiles.
 
 The private `agents` list contains session execution templates, not persistent
 workers or an autonomous-agent framework. Each entry has a stable `id`, a human
-`name`, a short `description` of when to choose it, `model`, `effort`, and optional
-`environment: {"environmentConfigId": "<private binding>"}`. IDs must be unique;
+`name`, a short `description` of when to choose it, `model`, `effort`, startup `instructions`, and optional
+`environment` containing the exact private environment ID as a nonempty string. IDs must be unique;
 names, descriptions and real environment IDs stay in the private profile.
+
+`description` guides selection; `instructions` supplies the chosen executor's role,
+tool/context guidance and custom startup text. Delegate forwards instructions with
+the issue ID, issue-first read requirement and applicable process skill. Instructions
+do not duplicate issue acceptance, prove access, expand authority or override current
+user/platform constraints. Resolve conflicts before dependent action. Do not embed
+credentials in either field.
 
 Delegate reads all descriptions against the issue's needs, then chooses one whole
 entry. No suitable entry or unresolved ambiguity stops dispatch with a specific
@@ -71,7 +83,8 @@ or ambiguity stops dispatch without substituting another template or destination
 
 `resolve_agent` takes assessed candidate IDs from the caller's description-based
 selection, verifies exactly one configured entry and its current capabilities,
-and returns a detached copy of that full entry. It does not interpret descriptions
+and returns a detached copy of that full entry. `build_handoff` formats that entry
+and its startup instructions into a private issue-first handoff without dispatch. It does not interpret descriptions
 or infer semantic fit; that is Delegate's job. Runtime catalog observations are
 separate from the private configuration and cannot grant authority.
 

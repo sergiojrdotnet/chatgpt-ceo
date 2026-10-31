@@ -276,19 +276,16 @@
             ]
           },
           "environment": {
-            "type": "object",
-            "properties": {
-              "environmentConfigId": {
-                "type": "string",
-                "minLength": 1,
-                "pattern": "\\S"
-              }
-            },
-            "required": [
-              "environmentConfigId"
-            ],
-            "additionalProperties": false,
-            "description": "Optional specialized environment binding. Absence requires verified explicit general-cloud execution, never an implicit desktop fallback."
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "description": "Optional exact private specialized-environment ID. Absence requires verified explicit general-cloud execution, never implicit desktop fallback."
+          },
+          "instructions": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "description": "Executor startup context and custom guidance, forwarded with the issue-first handoff. Not selection criteria, access evidence or additional authority."
           }
         },
         "required": [
@@ -296,7 +293,8 @@
           "name",
           "description",
           "model",
-          "effort"
+          "effort",
+          "instructions"
         ],
         "additionalProperties": false
       },

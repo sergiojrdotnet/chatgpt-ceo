@@ -32,9 +32,10 @@ bindings outside this repository. Credentials stay in protected facilities.
 wholly synthetic, inactive, fixture-only and execution-disabled.
 
 Private `agents` entries bundle a stable ID, name, selection description, model,
-effort and optional environment. Delegate selects one complete session template by
+effort, startup instructions and optional environment ID string. Delegate selects one complete session template by
 its description; no suitable entry or unresolved ambiguity stops dispatch. Settings
-are never mixed across entries. These templates do not create persistent agents.
+are never mixed across entries. Selected startup instructions accompany the issue-first
+handoff without granting authority or proving access. These templates do not create persistent agents.
 
 An entry without an environment needs no specialized binding, but still requires
 an explicitly supported general-cloud launch path. An omitted tool selector
@@ -42,8 +43,11 @@ currently defaults to desktop. Fresh availability/access/capability checks apply
 to the whole selected template, without silent substitution.
 
 Technical code/build/test/domain/architecture/runbook/safety facts remain in the
-product repository. Existing product procedures must remain until the replacement
-is discovered and loaded at the expected version in an actual executor.
+product repository. Its technical release skill is retained: Conduct Release
+invokes it for application-specific versioning and publication while coordinating
+authority, evidence, state and monitoring. For preparation/monitoring process
+migration, existing procedures remain until the replacement is discovered and
+loaded at the expected version in an actual executor.
 
 ## Local validation
 

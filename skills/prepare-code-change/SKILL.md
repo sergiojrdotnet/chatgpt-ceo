@@ -34,8 +34,9 @@ Consultation alone does not start execution.
    routine authorized implementation without ceremonial approval.
 
 Technical facts stay in the product repository. Maintain guidance only for concrete
-findings. Preserve existing source procedures until replacement discovery/loading
-and exact version are verified in an actual executor.
+findings. For preparation/monitoring process migration, preserve existing source
+procedures until replacement discovery/loading and exact version are verified in
+an actual executor. Retain the product repository's technical release skill.
 Handoff: implementation/review evidence goes to
 [reconcile-execution](../reconcile-execution/SKILL.md); publication separately invokes
 [conduct-release](../conduct-release/SKILL.md). Preparation grants no release authority.

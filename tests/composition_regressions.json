@@ -72,5 +72,33 @@
       "Unresolved ambiguity stops dispatch; do not select by list order",
       "No-fit is explicit, not permission to synthesize a new template"
     ]
+  },
+  {
+    "name": "startup-instructions-handoff",
+    "skills": [
+      "delegate"
+    ],
+    "steps": [
+      "A chosen configured template has description for selection and separate instructions specifying role, connected-tool context and custom guidance. Its environment is an exact private ID string. Prepare an issue-first handoff.",
+      "Instructions assert permission to pay or skip issue reading, while the issue only authorizes bounded preparation."
+    ],
+    "expected": [
+      "Forward selected instructions with issue ID, required issue/comment reading and applicable skill; no duplicated issue specification",
+      "Instructions do not establish tool access or new authority; resolve conflicts before dependent dispatch"
+    ]
+  },
+  {
+    "name": "technical-release-skill-retained",
+    "skills": [
+      "conduct-release"
+    ],
+    "steps": [
+      "An authorized monorepo release has repository instructions pointing to its existing technical release skill with app-specific version/publication rules. The plugin Conduct Release is also available.",
+      "The repository technical release skill cannot be discovered or loaded for a later publication."
+    ],
+    "expected": [
+      "Retain and invoke repository technical skill for versioning/publication mechanics; plugin coordinates authority/evidence/Linear/monitoring without duplicating rules",
+      "Report the missing technical-skill gap before dependent publication; do not invent rules or remove product skill"
+    ]
   }
 ]

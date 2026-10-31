@@ -13,6 +13,12 @@ delivery and observation, or precise remaining release/validation gaps.
    architecture, safety and target-binding instructions. Refresh the
    [private profile contract](../../references/profile.md). Confirm exact scope,
    destinations/dependencies and authority; reading access does not grant writes.
+   Discover the applicable repository release skill through its instructions/docs.
+   Invoke that retained technical skill for application-specific versioning,
+   artifact/build and publication mechanics. This skill coordinates authorization,
+   evidence, Linear transitions and monitoring; do not duplicate technical rules
+   or remove the repository release skill. If it cannot be found or loaded, report
+   the gap before dependent technical publication rather than inventing a procedure.
    At actual execution start, read the current Linear state. For a standalone
    release task, establish In Progress before substantive work and verify readback.
    For an already merged issue awaiting publication, preserve and verify Awaiting

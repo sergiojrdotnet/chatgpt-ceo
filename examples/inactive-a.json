@@ -59,9 +59,8 @@
       "description": "Choose for bounded code changes requiring a checkout and local tests.",
       "model": "synthetic-model-a",
       "effort": "medium",
-      "environment": {
-        "environmentConfigId": "synthetic-cloud-a"
-      }
+      "environment": "synthetic-cloud-a",
+      "instructions": "Use the connected tools available to this session. Verify source context and report evidence gaps; keep work within the issue scope."
     }
   ]
 }

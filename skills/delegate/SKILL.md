@@ -16,7 +16,7 @@ execution assignment, or a precise dispatch gap.
 2. Read the private profile's entire `agents` list and use each description to
    assess fit for the issue's outcome, constraints and required capabilities.
    Choose one configured agent by stable ID and use its WHOLE template: model,
-   effort and optional environment. These are session execution templates, not
+   effort, startup instructions and optional environment ID string. These are session execution templates, not
    persistent autonomous agents. If no entry fits, report the missing configuration;
    if several remain equally suitable, resolve the ambiguity before dispatch.
    Do not choose the first entry arbitrarily or recombine settings across entries.
@@ -38,7 +38,12 @@ execution assignment, or a precise dispatch gap.
    transaction, durable lock or exactly-once guarantee; interruption around sending
    can still leave occurrence unknown. Recover the checkpoint after restart and
    inspect authoritative sessions/results before considering another attempt.
-5. Send the issue ID, required process skill and only genuinely additional context.
+5. Send the issue ID, required process skill, the selected agent's `instructions`
+   and only genuinely additional context. `description` is for choosing the agent;
+   `instructions` is executor startup context (role, tools/context, custom guidance).
+   Forward it without duplicating the issue. Instructions do not prove tool access,
+   expand authority or override user/platform constraints, issue scope or required
+   process. Resolve conflicts before dependent dispatch; never embed credentials.
    Require the executor to read the entire issue and relevant comments/references.
    Development MUST invoke [prepare-code-change](../prepare-code-change/SKILL.md);
    administration invokes [operate-administration](../operate-administration/SKILL.md);

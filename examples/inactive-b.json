@@ -59,16 +59,16 @@
       "description": "Choose for bounded code changes requiring a checkout and local tests.",
       "model": "synthetic-model-b",
       "effort": "medium",
-      "environment": {
-        "environmentConfigId": "synthetic-cloud-b"
-      }
+      "environment": "synthetic-cloud-b",
+      "instructions": "Use the connected tools available to this session. Verify source context and report evidence gaps; keep work within the issue scope."
     },
     {
       "id": "synthetic-records",
       "name": "Synthetic records assistant",
       "description": "Choose for bounded record preparation or connected-tool research without a code checkout.",
       "model": "synthetic-record-model",
-      "effort": "low"
+      "effort": "low",
+      "instructions": "Use the connected tools available to this session. Verify source context and report evidence gaps; keep work within the issue scope."
     },
     {
       "id": "synthetic-observer",
@@ -76,9 +76,8 @@
       "description": "Choose for authorized release observation needing operational telemetry access.",
       "model": "synthetic-observation-model",
       "effort": "high",
-      "environment": {
-        "environmentConfigId": "synthetic-observation-cloud"
-      }
+      "environment": "synthetic-observation-cloud",
+      "instructions": "Use the connected tools available to this session. Verify source context and report evidence gaps; keep work within the issue scope."
     }
   ]
 }

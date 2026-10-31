@@ -16,8 +16,8 @@ class Agents(unittest.TestCase):
         value=fixture()
         selected=self.resolve(value)
         self.assertEqual(selected,value['agents'][0])
-        selected['environment']['environmentConfigId']='changed-copy'
-        self.assertEqual(value['agents'][0]['environment']['environmentConfigId'],'synthetic-cloud-a')
+        selected['environment']='changed-copy'
+        self.assertEqual(value['agents'][0]['environment'],'synthetic-cloud-a')
 
     def test_arbitrary_ids_descriptions_without_fixed_company_roles(self):
         value=fixture();value['agents'][0]['id']='custom-auditor'
@@ -42,11 +42,11 @@ class Agents(unittest.TestCase):
 
     def test_closed_required_fields_and_description_bounds(self):
         agent=fixture()['agents'][0]
-        for key in ('id','name','description','model','effort'):
+        for key in ('id','name','description','model','effort','instructions'):
             value=fixture();del value['agents'][0][key]
             with self.subTest(key=key),self.assertRaises(p.PolicyError):p.validate(value)
         for field,bad in [('description',' '),('description','a'*501),('name',''),('id','BAD ID'),('id','valid-id\n'),
-                          ('environment',{}),('environment',None),('environment',{'projectId':'desktop'})]:
+                          ('instructions',' '),('instructions',None),('environment',''),('environment',' '),('environment',{}),('environment',None),('environment',{'projectId':'desktop'})]:
             value=fixture();value['agents'][0][field]=bad
             with self.subTest(field=field,bad=bad),self.assertRaises(p.PolicyError):p.validate(value)
         value=fixture();value['agents'][0]['unknown']='unconfigured'
