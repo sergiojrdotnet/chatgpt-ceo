@@ -7,10 +7,6 @@
   "fixtureOnly": true,
   "executionEnabled": false,
   "ownerRef": "synthetic-owner-a",
-  "agreement": {
-    "reference": "synthetic-agreement-a",
-    "revision": "example-1"
-  },
   "timezone": "Etc/UTC",
   "bindings": {
     "linear": {

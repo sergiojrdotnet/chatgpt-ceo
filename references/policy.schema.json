@@ -33,26 +33,6 @@
       "minLength": 1,
       "pattern": "\\S"
     },
-    "agreement": {
-      "type": "object",
-      "properties": {
-        "reference": {
-          "type": "string",
-          "minLength": 1,
-          "pattern": "\\S"
-        },
-        "revision": {
-          "type": "string",
-          "minLength": 1,
-          "pattern": "\\S"
-        }
-      },
-      "required": [
-        "reference",
-        "revision"
-      ],
-      "additionalProperties": false
-    },
     "timezone": {
       "type": "string",
       "minLength": 1,
@@ -310,7 +290,6 @@
     "fixtureOnly",
     "executionEnabled",
     "ownerRef",
-    "agreement",
     "timezone",
     "bindings",
     "capacity",
