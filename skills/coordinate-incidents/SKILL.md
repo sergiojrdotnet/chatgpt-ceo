@@ -9,7 +9,7 @@ Owner: incident coordinator; named investigators/recovery executors own actions.
 Inputs: report or alert, affected scope and current evidence. Outcome: coordinated
 response with verified restoration and visible follow-up in one Linear incident.
 
-Configuration: call `get_operation_context`, then `get_selection_policy`, `get_release_policy` as needed.
+Configuration: call `get_operation_context`, then `get_selection_policy` as needed.
 Use the same revision for all configuration reads; follow the linked contract.
 
 1. Read the current incident and relevant comments if one exists; correlate repeated

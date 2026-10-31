@@ -68,7 +68,7 @@ function data(result: Awaited<ReturnType<Client["callTool"]>>) {
   assert.notEqual(result.isError, true, JSON.stringify(result));
   return result.structuredContent as Record<string, any>;
 }
-test("fresh SDK consumers setup, discover ten tools, read subjects consistently and enforce distinct write roles", async () => {
+test("fresh SDK consumers setup, discover nine tools, read subjects consistently and enforce distinct write roles", async () => {
   const f = await fixture();
   const admin = await f.client("admin@example.test"),
     reader = await f.client("reader@example.test"),
@@ -76,7 +76,7 @@ test("fresh SDK consumers setup, discover ten tools, read subjects consistently 
   try {
     assert.equal(reader.getServerVersion()?.name, "ceo");
     const names = (await reader.listTools()).tools.map((tool) => tool.name);
-    assert.equal(names.length, 10);
+    assert.equal(names.length, 9);
     const tools = (await reader.listTools()).tools;
     const show = tools.find((t) => t.name === "show_coordination_history")!;
     assert.deepEqual(show._meta?.ui, {
@@ -122,6 +122,7 @@ test("fresh SDK consumers setup, discover ten tools, read subjects consistently 
     assert.ok(names.includes("append_coordination_event"));
     assert.ok(names.includes("list_coordination_events"));
     assert.ok(!names.includes("get_checkpoint"));
+    assert.ok(!names.includes("get_release_policy"));
     assert.ok(!names.includes("save_checkpoint"));
     assert.equal(
       data(await admin.callTool({ name: "get_configuration", arguments: {} }))
@@ -170,7 +171,6 @@ test("fresh SDK consumers setup, discover ten tools, read subjects consistently 
     for (const name of [
       "get_agents",
       "get_selection_policy",
-      "get_release_policy",
     ]) {
       const result = data(
         await reader.callTool({
@@ -376,7 +376,7 @@ test("SDK v2 negotiates dated protocol versions and serves current stateless dis
   const f = await fixture();
   try {
     const modern = await f.client("reader@example.test", true);
-    assert.equal((await modern.listTools()).tools.length, 10);
+    assert.equal((await modern.listTools()).tools.length, 9);
     await modern.close();
     async function rpc(
       method: string,

@@ -64,7 +64,7 @@
   },
   {
     "skill": "conduct-release",
-    "prompt": "Dry run: independent review covers an older commit than the candidate. CI for candidate is green. An image was uploaded, destination version is unknown, and only ten minutes of observation are offered against a synthetic private minimum of seventeen. Can this be released or marked Done?",
+    "prompt": "Dry run: independent review covers an older commit than the candidate. CI for candidate is green. An image was uploaded, destination version is unknown, and only ten minutes of observation are offered against an applicable synthetic project runbook minimum of seventeen with no authorized exception. Can this be released or marked Done?",
     "mustPreserve": [
       "exact-current-version independent review required",
       "artifact upload is not destination publication",

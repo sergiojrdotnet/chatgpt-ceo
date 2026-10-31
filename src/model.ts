@@ -32,7 +32,7 @@ export type Agent = {
   environment?: string;
 };
 export type Configuration = {
-  schemaVersion: 1;
+  schemaVersion: 2;
   profileId: string;
   effectiveAt: string;
   active: boolean;
@@ -54,10 +54,6 @@ export type Configuration = {
   selection: {
     administrativeHours: { start: string; end: string };
     lowActivityPreference: boolean;
-  };
-  release: {
-    restrictedWindows: { weekdays: number[]; start: string; end: string }[];
-    observationMinimumMinutes: number;
   };
   agents: Agent[];
 };
@@ -91,24 +87,8 @@ export function configuration(input: unknown): Configuration {
     fail("DUPLICATE_AGENT_ID");
   if (c.active && c.executionEnabled && !c.agents.length)
     fail("AGENTS_REQUIRED");
-  const windows = c.release.restrictedWindows;
-  if (
-    [c.selection.administrativeHours, ...windows].some((w) => w.start >= w.end)
-  )
+  if (c.selection.administrativeHours.start >= c.selection.administrativeHours.end)
     fail("INVALID_WINDOW");
-  if (
-    windows.some((a, i) =>
-      windows
-        .slice(i + 1)
-        .some(
-          (b) =>
-            a.weekdays.some((d) => b.weekdays.includes(d)) &&
-            a.start < b.end &&
-            b.start < a.end,
-        ),
-    )
-  )
-    fail("OVERLAPPING_WINDOWS");
   // Closed schema: references only, no credential bags or arbitrary settings.
   if (
     /-----BEGIN .*PRIVATE KEY-----|\bBearer\s+[A-Za-z0-9._~-]{12,}|https?:\/\/[^\s/]+:[^\s/]+@/i.test(

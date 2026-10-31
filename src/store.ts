@@ -32,7 +32,7 @@ export class Store {
             "SELECT 1 FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' LIMIT 1",
           )
           .get();
-        if ((hasTables && version !== 2) || (!hasTables && version !== 0)) {
+        if ((hasTables && version !== 3) || (!hasTables && version !== 0)) {
           fail("CLEAN_DATABASE_REQUIRED");
         }
 
@@ -44,13 +44,11 @@ export class Store {
         preferred_min INTEGER NOT NULL CHECK(preferred_min>0),preferred_max INTEGER NOT NULL CHECK(preferred_max>=preferred_min),
         active_max INTEGER NOT NULL CHECK(active_max>=preferred_max),urgent_max INTEGER NOT NULL CHECK(urgent_max=active_max+1),
         administrative_start TEXT NOT NULL,administrative_end TEXT NOT NULL CHECK(administrative_end>administrative_start),
-        low_activity INTEGER NOT NULL CHECK(low_activity IN(0,1)),observation_minutes INTEGER NOT NULL CHECK(observation_minutes>0)
+        low_activity INTEGER NOT NULL CHECK(low_activity IN(0,1))
       ) STRICT;
       CREATE TABLE IF NOT EXISTS bindings(revision INTEGER PRIMARY KEY REFERENCES policy(revision),linear_workspace TEXT NOT NULL,linear_team TEXT NOT NULL,erp_connection TEXT NOT NULL) STRICT;
       CREATE TABLE IF NOT EXISTS repositories(revision INTEGER NOT NULL REFERENCES policy(revision),position INTEGER NOT NULL CHECK(position>=0),repository TEXT NOT NULL,PRIMARY KEY(revision,position),UNIQUE(revision,repository)) STRICT;
       CREATE TABLE IF NOT EXISTS agents(revision INTEGER NOT NULL REFERENCES policy(revision),id TEXT NOT NULL,position INTEGER NOT NULL CHECK(position>=0),name TEXT NOT NULL,description TEXT NOT NULL,instructions TEXT NOT NULL,model TEXT NOT NULL,effort TEXT NOT NULL CHECK(effort IN('low','medium','high','xhigh','max','ultra')),environment TEXT,PRIMARY KEY(revision,id),UNIQUE(revision,position)) STRICT;
-      CREATE TABLE IF NOT EXISTS release_windows(revision INTEGER NOT NULL REFERENCES policy(revision),position INTEGER NOT NULL CHECK(position>=0),start TEXT NOT NULL,end TEXT NOT NULL CHECK(end>start),PRIMARY KEY(revision,position)) STRICT;
-      CREATE TABLE IF NOT EXISTS release_days(revision INTEGER NOT NULL,window_position INTEGER NOT NULL,position INTEGER NOT NULL CHECK(position>=0),weekday INTEGER NOT NULL CHECK(weekday BETWEEN 1 AND 7),PRIMARY KEY(revision,window_position,position),UNIQUE(revision,window_position,weekday),FOREIGN KEY(revision,window_position) REFERENCES release_windows(revision,position)) STRICT;
       CREATE TABLE IF NOT EXISTS coordination_events(
         seq INTEGER PRIMARY KEY CHECK(seq>0),event_id TEXT NOT NULL UNIQUE,
         action TEXT NOT NULL CHECK(action IN('planning','selection','delegation','execution','release-plan','publication','handoff','validation','incident','administration','configuration','correction')),
@@ -85,8 +83,6 @@ export class Store {
           "bindings",
           "repositories",
           "agents",
-          "release_windows",
-          "release_days",
           "coordination_events",
           "event_evidence",
           "requests",
@@ -98,7 +94,7 @@ export class Store {
               `CREATE TRIGGER IF NOT EXISTS immutable_${table}_${operation} BEFORE ${operation} ON ${table} BEGIN SELECT RAISE(ABORT,'IMMUTABLE_RECORD'); END;`,
             );
         }
-        this.db.exec("PRAGMA user_version=2");
+        this.db.exec("PRAGMA user_version=3");
       });
       if (path !== ":memory:") chmodSync(path, 0o600);
     } catch (error) {
@@ -147,7 +143,7 @@ export class Store {
       .get(revision) as Row | undefined;
     if (!b) fail("INCOMPLETE_CONFIGURATION");
     const c = configuration({
-      schemaVersion: 1,
+      schemaVersion: 2,
       profileId: p.profile_id,
       effectiveAt: p.effective_at,
       active: !!p.active,
@@ -179,24 +175,6 @@ export class Store {
           end: p.administrative_end,
         },
         lowActivityPreference: !!p.low_activity,
-      },
-      release: {
-        observationMinimumMinutes: p.observation_minutes,
-        restrictedWindows: this.db
-          .prepare(
-            "SELECT * FROM release_windows WHERE revision=? ORDER BY position",
-          )
-          .all(revision)
-          .map((w) => ({
-            start: w.start,
-            end: w.end,
-            weekdays: this.db
-              .prepare(
-                "SELECT weekday FROM release_days WHERE revision=? AND window_position=? ORDER BY position",
-              )
-              .all(revision, w.position)
-              .map((d) => d.weekday),
-          })),
       },
       agents: this.db
         .prepare("SELECT * FROM agents WHERE revision=? ORDER BY position")
@@ -259,7 +237,7 @@ export class Store {
     const revision = this.current(),
       p = revision ? this.policy(revision) : null;
     return {
-      schemaVersion: 1,
+      schemaVersion: 2,
       revision,
       setupRequired: !revision,
       configuration: p?.c ?? null,
@@ -267,7 +245,7 @@ export class Store {
     };
   }
   read(
-    subject: "context" | "agents" | "selection" | "release",
+    subject: "context" | "agents" | "selection",
     expectedRevision?: number,
   ) {
     const revision = this.current();
@@ -286,15 +264,13 @@ export class Store {
           }
         : subject === "agents"
           ? { agents: c.agents }
-          : subject === "selection"
-            ? {
-                capacity: c.capacity,
-                selection: c.selection,
-                timezone: c.timezone,
-              }
-            : { release: c.release, timezone: c.timezone };
+          : {
+              capacity: c.capacity,
+              selection: c.selection,
+              timezone: c.timezone,
+            };
     return {
-      schemaVersion: 1,
+      schemaVersion: 2,
       revision,
       digest: hash,
       complete: true,
@@ -344,7 +320,6 @@ export class Store {
           c.selection.administrativeHours.start,
           c.selection.administrativeHours.end,
           +c.selection.lowActivityPreference,
-          c.release.observationMinimumMinutes,
         ]);
         this.insert("bindings", [
           r,
@@ -368,12 +343,6 @@ export class Store {
             a.environment ?? null,
           ]),
         );
-        c.release.restrictedWindows.forEach((w, i) => {
-          this.insert("release_windows", [r, i, w.start, w.end]);
-          w.weekdays.forEach((d, j) =>
-            this.insert("release_days", [r, i, j, d]),
-          );
-        });
         return { revision: r, digest: reviewDigest };
       },
     );

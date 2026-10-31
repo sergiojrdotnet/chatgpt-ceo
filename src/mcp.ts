@@ -88,11 +88,6 @@ export function mcp(store: Store) {
           "selection",
           "Read capacity and work-selection constraints.",
         ],
-        [
-          "get_release_policy",
-          "release",
-          "Read release windows and observation constraints.",
-        ],
       ] as const)
         server.registerTool(
           name,

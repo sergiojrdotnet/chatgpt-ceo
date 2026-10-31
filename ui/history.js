@@ -70,7 +70,9 @@
       const fields = document.createElement("dl");
       field(fields, "Recorded", event.recordedAt);
       field(fields, "Observed", event.observedAt);
-      field(fields, "Scope", `${event.scope?.type} · ${event.scope?.id}`);
+      field(fields, "Scope", event.scope?.type === "issue"
+        ? "issue"
+        : `${event.scope?.type} · ${event.scope?.id}`);
       if (event.issueId) field(fields, "Issue", event.issueId);
       field(fields, "Reason", event.reason);
       field(fields, "Result", event.result);
