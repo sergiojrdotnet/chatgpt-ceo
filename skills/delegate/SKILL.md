@@ -50,7 +50,8 @@ Use the same revision for all configuration reads; follow the linked contract.
    Require the executor to read the entire issue and relevant comments/references.
    Development MUST invoke [prepare-code-change](../prepare-code-change/SKILL.md);
    administration invokes [operate-administration](../operate-administration/SKILL.md);
-   publication invokes [conduct-release](../conduct-release/SKILL.md). Other work
+   publication invokes the already-assigned executor path of
+   [conduct-release](../conduct-release/SKILL.md), without redelegating release. Other work
    names its applicable process. Do not repeat objective/acceptance from the issue.
 6. Append a new `delegation` event after the actual response using its returned
    `threadId` and optional `turnId`, phase and correlation ID. Record `confirmed`

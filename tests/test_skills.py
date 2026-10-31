@@ -50,7 +50,8 @@ class Skills(unittest.TestCase):
         release = (ROOT / 'skills/conduct-release/SKILL.md').read_text()
         for boundary in ('Awaiting Release', 'separate release', 'original implementation',
                          'list_coordination_events', 'append_coordination_event',
-                         'correlationId', 'uncertain', 'Real host', 'no schedule'):
+                         'correlationId', 'uncertain', 'Real host', 'no schedule',
+                         'already assigned release', 'repeat step 4'):
             self.assertIn(boundary, release)
         for name in ('plan', 'select-work', 'delegate', 'reconcile-execution',
                      'conduct-release', 'coordinate-incidents', 'operate-administration', 'setup'):

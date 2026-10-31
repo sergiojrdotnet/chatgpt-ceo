@@ -19,22 +19,24 @@ export class Store {
     if (path !== ":memory:")
       mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
     this.db = new DatabaseSync(path);
-    const version = Number(
-      this.db.prepare("PRAGMA user_version").get()!.user_version,
-    );
-    const hasTables = !!this.db
-      .prepare(
-        "SELECT 1 FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' LIMIT 1",
-      )
-      .get();
-    if ((hasTables && version !== 2) || (!hasTables && version !== 0)) {
-      this.db.close();
-      fail("CLEAN_DATABASE_REQUIRED");
-    }
+    try {
+      this.db.exec(
+        "PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;",
+      );
+      this.transaction(() => {
+        const version = Number(
+          this.db.prepare("PRAGMA user_version").get()!.user_version,
+        );
+        const hasTables = !!this.db
+          .prepare(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' LIMIT 1",
+          )
+          .get();
+        if ((hasTables && version !== 2) || (!hasTables && version !== 0)) {
+          fail("CLEAN_DATABASE_REQUIRED");
+        }
 
-    this.db
-      .exec(`PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000;
-      CREATE TABLE IF NOT EXISTS policy(
+        this.db.exec(`CREATE TABLE IF NOT EXISTS policy(
         revision INTEGER PRIMARY KEY CHECK(revision>0), digest TEXT NOT NULL,
         profile_id TEXT NOT NULL, effective_at TEXT NOT NULL, active INTEGER NOT NULL CHECK(active IN(0,1)),
         fixture_only INTEGER NOT NULL CHECK(fixture_only IN(0,1)), execution_enabled INTEGER NOT NULL CHECK(execution_enabled IN(0,1)),
@@ -74,30 +76,35 @@ export class Store {
       CREATE TABLE IF NOT EXISTS requests(actor TEXT NOT NULL,id TEXT NOT NULL,digest TEXT NOT NULL,operation TEXT NOT NULL CHECK(operation IN('configuration','event')),result_revision INTEGER NOT NULL REFERENCES policy(revision),event_id TEXT REFERENCES coordination_events(event_id),PRIMARY KEY(actor,id),CHECK((operation='event')=(event_id IS NOT NULL))) STRICT;
       CREATE TABLE IF NOT EXISTS store_identity(id INTEGER PRIMARY KEY CHECK(id=1),value TEXT NOT NULL) STRICT;
       CREATE TABLE IF NOT EXISTS audit(seq INTEGER PRIMARY KEY,actor TEXT NOT NULL,operation TEXT NOT NULL,revision INTEGER NOT NULL,at TEXT NOT NULL) STRICT;`);
-    this.db
-      .prepare("INSERT OR IGNORE INTO store_identity VALUES(1,?)")
-      .run(randomUUID());
-    // No API or ordinary SQL update/delete can rewrite accepted evidence or policy.
-    for (const table of [
-      "policy",
-      "bindings",
-      "repositories",
-      "agents",
-      "release_windows",
-      "release_days",
-      "coordination_events",
-      "event_evidence",
-      "requests",
-      "audit",
-      "store_identity",
-    ]) {
-      for (const operation of ["UPDATE", "DELETE"])
-        this.db.exec(
-          `CREATE TRIGGER IF NOT EXISTS immutable_${table}_${operation} BEFORE ${operation} ON ${table} BEGIN SELECT RAISE(ABORT,'IMMUTABLE_RECORD'); END;`,
-        );
+        this.db
+          .prepare("INSERT OR IGNORE INTO store_identity VALUES(1,?)")
+          .run(randomUUID());
+        // No API or ordinary SQL update/delete can rewrite accepted evidence or policy.
+        for (const table of [
+          "policy",
+          "bindings",
+          "repositories",
+          "agents",
+          "release_windows",
+          "release_days",
+          "coordination_events",
+          "event_evidence",
+          "requests",
+          "audit",
+          "store_identity",
+        ]) {
+          for (const operation of ["UPDATE", "DELETE"])
+            this.db.exec(
+              `CREATE TRIGGER IF NOT EXISTS immutable_${table}_${operation} BEFORE ${operation} ON ${table} BEGIN SELECT RAISE(ABORT,'IMMUTABLE_RECORD'); END;`,
+            );
+        }
+        this.db.exec("PRAGMA user_version=2");
+      });
+      if (path !== ":memory:") chmodSync(path, 0o600);
+    } catch (error) {
+      this.db.close();
+      throw error;
     }
-    this.db.exec("PRAGMA user_version=2");
-    if (path !== ":memory:") chmodSync(path, 0o600);
   }
   close() {
     this.db.close();

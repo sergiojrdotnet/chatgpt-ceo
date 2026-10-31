@@ -409,3 +409,35 @@ test("non-issue scope, no session and no configured agents are valid; future obs
     s.close();
   }
 });
+test("interrupted schema initialization rolls back and can restart without reset", () => {
+  const dir = mkdtempSync(join(tmpdir(), "ceo-init-")),
+    path = join(dir, "db.sqlite");
+  const original = DatabaseSync.prototype.exec;
+  try {
+    DatabaseSync.prototype.exec = function (sql: string) {
+      if (sql.includes("immutable_policy_UPDATE"))
+        throw Error("synthetic initialization interruption");
+      return original.call(this, sql);
+    };
+    assert.throws(() => new Store(path), /initialization interruption/);
+  } finally {
+    DatabaseSync.prototype.exec = original;
+  }
+  try {
+    const db = new DatabaseSync(path);
+    assert.equal(db.prepare("PRAGMA user_version").get()!.user_version, 0);
+    assert.equal(
+      db
+        .prepare("SELECT COUNT(*) n FROM sqlite_master WHERE type='table'")
+        .get()!.n,
+      0,
+    );
+    db.close();
+    const s = setup(path);
+    assert.equal(s.adminRead().revision, 1);
+    s.appendEvent("writer", args("after-restart"));
+    s.close();
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

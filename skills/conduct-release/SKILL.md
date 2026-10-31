@@ -14,6 +14,14 @@ Configuration: call `get_operation_context`, then `get_release_policy`,
 `get_selection_policy` and `get_agents` as needed at the same revision.
 Follow the [configuration contract](../../references/configuration.md).
 
+Coordinator and executor paths are distinct. The coordinator owns batch selection,
+planning, assignment and implementation-session handoff. An already assigned release
+executor reads its authorized plan and exact issue scope, verifies current policy and
+technical prerequisites, then executes the supplied repository release procedure and
+returns publication/observation evidence (step 5). It does not select a new batch,
+repeat step 4, or create another release session. It reports changed scope/conflicts
+to the coordinator before dependent mutations. The coordinator resumes steps 6–7.
+
 1. Read current Awaiting Release issues in Linear, their full descriptions,
    acceptance, comments and references. Select an authorized bounded batch after
    assessing actual capacity, dependencies, conflicting changes, exact versions,
@@ -38,7 +46,7 @@ Follow the [configuration contract](../../references/configuration.md).
    Append per-issue `release-plan` events with a shared `correlationId`, reason,
    approved plan references and honest outcome. Resolve actual reserved decisions
    using the concrete plan; existing authorization persists.
-4. Assign the release executor through [delegate](../delegate/SKILL.md), preserving
+4. As coordinator, assign the release executor through [delegate](../delegate/SKILL.md), preserving
    the whole selected template and repository instructions. Use a separate release
    session; preserve original implementation session IDs in issue history. Shared
    batch events use one actual release thread ID per event and the common
