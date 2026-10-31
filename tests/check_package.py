@@ -13,7 +13,7 @@ SKILLS = ('plan', 'select-work', 'delegate', 'reconcile-execution',
           'conduct-release', 'monitor-system')
 ALLOWED = ('plugin.json', 'README.md', 'requirements.txt',
            'references/profile.md', 'references/state-evidence.md',
-           'references/policy-v2.schema.json', 'scripts/policy.py',
+           'references/policy.schema.json', 'scripts/policy.py',
            'examples/inactive-a.json', 'examples/inactive-b.json',
            *(f'skills/{name}/SKILL.md' for name in SKILLS))
 

@@ -1,4 +1,4 @@
-"""New schema-v2 routing behavior; catalog observations are explicitly synthetic."""
+"""Initial schema routing behavior; catalog observations are explicitly synthetic."""
 import copy
 import unittest
 from test_policy import fixture
@@ -51,14 +51,14 @@ class Routing(unittest.TestCase):
             with self.subTest(catalog=catalog), self.assertRaisesRegex(p.PolicyError, 'INVALID_CATALOG'):
                 p.resolve_route(self.general(), 'general', catalog)
 
-    def test_closed_route_variants_and_old_schema_rejected(self):
-        for binding in ({}, {'environmentConfigId': 'synthetic-old'},
+    def test_closed_route_variants_and_unknown_schema_rejected(self):
+        for binding in ({}, {'environmentConfigId': 'synthetic-incomplete'},
                         {'kind':'specialized'}, {'kind':'desktop'},
                         {'kind':'generalCloud','environmentConfigId':'synthetic-extra'},
                         {'kind':'generalCloud','projectId':'synthetic-desktop'}):
             value=self.general();value['routing']['general']=binding
             with self.subTest(binding=binding), self.assertRaises(p.PolicyError):p.validate(value)
-        value=fixture();value['schemaVersion']=1
+        value=fixture();value['schemaVersion']=99
         with self.assertRaises(p.PolicyError):p.validate(value)
 
     def test_general_simulation_still_never_dispatches(self):

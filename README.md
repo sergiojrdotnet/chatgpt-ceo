@@ -21,21 +21,19 @@ Each works without first loading a coordinator entry skill. Development delegati
 requires prepare-code-change; administration and publication have separate paths.
 Linear owns objectives, acceptance and material deltas; delegation carries its ID
 and additional context instead of duplicating the issue. Commercial/marketing work
-is outside this MVP.
+is outside this package’s scope.
 
 ## Private profile contract
 
-[Profile contract](references/profile.md) and [schema v2](references/policy-v2.schema.json)
+[Profile contract](references/profile.md) and [policy schema](references/policy.schema.json)
 keep company identity, source locators, actual policy values and environment
 bindings outside this repository. Credentials stay in protected facilities.
 [Example A](examples/inactive-a.json) and [example B](examples/inactive-b.json) are
 wholly synthetic, inactive, fixture-only and execution-disabled.
 
-Version 0.2.0 replaces the earlier monolithic design. Schema v2 explicitly supports
-a general-cloud business route without a specialized environment binding. It does
-not prove the host supports that route. An omitted selector currently defaults to
-desktop; unsupported dispatch blocks without fallback. V1 profiles are rejected;
-migration needs explicit review and a new approved checkpoint, not coercion.
+Routing explicitly supports a general-cloud business route without a specialized
+environment binding. It does not prove the host supports that route. An omitted
+selector currently defaults to desktop; unsupported dispatch blocks without fallback.
 
 Technical code/build/test/domain/architecture/runbook/safety facts remain in the
 product repository. Existing product procedures must remain until the replacement

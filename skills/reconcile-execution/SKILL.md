@@ -27,8 +27,9 @@ result, never a parallel work board.
    may resolve a lost response; empty/inaccessible readback does not justify retry.
    Recover protected attempt/checkpoint evidence after restart; no exactly-once
    or durable-lock guarantee is provided by this package.
-5. Apply [state evidence](../../references/state-evidence.md). Draft stays In
-   Progress; merge is not publication; publication is not acceptance. Compare every
+5. Apply [state evidence](../../references/state-evidence.md). A draft PR stays In
+   Progress; an administrative draft can satisfy a draft-only acceptance outcome.
+   Merge is not publication; publication is not acceptance. Compare every
    criterion and unresolved regression. Correct mismatched automated transitions
    and verify readback. Review/CI/observation waiting remains owned capacity.
 6. Record concise findings, precise gaps, owner and next check in the issue.

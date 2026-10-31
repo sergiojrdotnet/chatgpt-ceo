@@ -25,17 +25,27 @@ execution assignment, or a precise dispatch gap.
    approved policy choice. Verify the exact combination is supported; missing
    choices need a decision, unsupported ones need a concrete alternative.
    Do not silently substitute or infer effective settings, cost or quality.
-4. Send the issue ID, required process skill and only genuinely additional context.
+4. BEFORE dispatch, persist and verify recoverable protected attempt evidence:
+   intended-attempt identity, issue ID, approved profile/source checkpoint,
+   requested model/effort, verified destination, owner and next check. If recording
+   or readback fails or is uncertain, stop dispatch and reconcile that checkpoint.
+   An intended attempt is not proof of submission. This record is not an atomic
+   transaction, durable lock or exactly-once guarantee; interruption around sending
+   can still leave occurrence unknown. Recover the checkpoint after restart and
+   inspect authoritative sessions/results before considering another attempt.
+5. Send the issue ID, required process skill and only genuinely additional context.
    Require the executor to read the entire issue and relevant comments/references.
    Development MUST invoke [prepare-code-change](../prepare-code-change/SKILL.md);
    administration invokes [operate-administration](../operate-administration/SKILL.md);
    publication invokes [conduct-release](../conduct-release/SKILL.md). Other work
    names its applicable process. Do not repeat objective/acceptance from the issue.
-5. Record requested model/effort, observed effective metadata (unknown when absent),
-   destination evidence, session/attempt identity, owner and next checkpoint in
-   protected task evidence. Pass only necessary private context. On ambiguous
-   dispatch response, inspect actual sessions before retrying; absence alone is
-   not definitive failure.
+6. Append returned session identity, response and observed effective metadata
+   (unknown when absent) to that attempt; verify the record. Pass only necessary
+   private context. A known rejection is not submission; a timeout, missing response
+   or failed post-send record leaves dispatch uncertain until reconciled. Inspect
+   actual sessions/results before retrying; an empty session list alone is not
+   definitive failure. If checkpoint recovery is unavailable, stop dependent retry
+   or resumption and report the gap.
 
 Handoff: [reconcile-execution](../reconcile-execution/SKILL.md) owns follow-through.
 A dispatch acknowledgement neither starts substantive execution nor proves success.

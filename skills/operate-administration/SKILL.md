@@ -18,7 +18,7 @@ record stage or a precise blocked/failed/uncertain result.
    any authorized mutation. Preparation, saved draft, submitted accounting entry,
    executed payment and bank settlement are distinct. Permission to prepare is
    not payment, contract, submission, cancellation or bank-change authority.
-   Unknown effects stop that operation. Commercial/marketing work is outside MVP.
+   Unknown effects stop that operation. Commercial/marketing work is outside this skill’s scope.
 3. Establish stable operation identity and complete bounded duplicate-search
    coverage in the authorized company. Partial pagination, access-filtered absence
    and fuzzy matches do not prove uniqueness. Exact existing effect satisfying

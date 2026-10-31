@@ -9,8 +9,8 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from jsonschema import Draft202012Validator, ValidationError
 
-CORE_VERSION = '0.2.0'
-SCHEMA = json.loads((Path(__file__).resolve().parents[1] / 'references/policy-v2.schema.json').read_text())
+CORE_VERSION = '0.1.0'
+SCHEMA = json.loads((Path(__file__).resolve().parents[1] / 'references/policy.schema.json').read_text())
 
 
 class PolicyError(ValueError):

@@ -58,6 +58,14 @@ class Validation(unittest.TestCase):
                     walk(schema['items'], item)
         walk(p.SCHEMA, fixture())
 
+    def test_initial_contract_and_package_metadata_agree(self):
+        manifest = json.loads((ROOT / 'plugin.json').read_text())
+        self.assertEqual(manifest['version'], p.CORE_VERSION)
+        self.assertEqual(p.CORE_VERSION, '0.1.0')
+        self.assertEqual(p.SCHEMA['properties']['schemaVersion']['const'], 1)
+        for label in ('a', 'b'):
+            self.assertEqual(fixture(label)['schemaVersion'], 1)
+
     def test_schema_is_valid(self):
         p.Draft202012Validator.check_schema(p.SCHEMA)
 
@@ -88,7 +96,7 @@ class Validation(unittest.TestCase):
                 p.validate(value)
 
     def test_invalid_nested_values(self):
-        cases = [(['schemaVersion'], 1), (['revision'], 0), (['revision'], True),
+        cases = [(['schemaVersion'], 99), (['revision'], 0), (['revision'], True),
                  (['ownerRef'], '  '), (['timezone'], 'Mars/Olympus'),
                  (['models', 'analysis', 'effort'], 'automatic'),
                  (['bindings', 'github', 'repositories'], ['same', 'same']),

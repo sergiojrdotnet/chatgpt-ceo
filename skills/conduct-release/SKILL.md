@@ -13,6 +13,14 @@ delivery and observation, or precise remaining release/validation gaps.
    architecture, safety and target-binding instructions. Refresh the
    [private profile contract](../../references/profile.md). Confirm exact scope,
    destinations/dependencies and authority; reading access does not grant writes.
+   At actual execution start, read the current Linear state. For a standalone
+   release task, establish In Progress before substantive work and verify readback.
+   For an already merged issue awaiting publication, preserve and verify Awaiting
+   Release instead of regressing its delivery phase; record the active release
+   owner/checkpoint in its comment. Likewise retain an evidenced In Validation
+   phase during observation. Consultation alone does not start execution. If a
+   required state write/readback fails or is uncertain, report the gap and resolve
+   actual state before dependent release actions; never claim a successful transition.
 2. Verify required CI and completed independent review cover the exact current
    revision, with findings/conversations addressed and acceptance/docs consistent.
    Zero unresolved threads is not proof a review ran. Do not assume events reach
