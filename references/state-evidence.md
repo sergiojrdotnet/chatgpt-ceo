@@ -4,6 +4,12 @@ Linear is the canonical work/decision record; runtime sessions, GitHub and ERPNe
 provide evidence. Read actual state before a needed transition and verify readback.
 Use the selected workspace's real statuses rather than guessing IDs.
 
+Failed or uncertain Linear bookkeeping does not block already-authorized read-only
+monitoring or diagnostic collection within its existing scope. Report the failure
+or uncertainty without claiming a transition; preserve evidence for later
+reconciliation and inspect actual state before retrying an uncertain write.
+This exception grants no mutation, recovery, dispatch or publication authority.
+
 | Stage | Evidence |
 | --- | --- |
 | Triage / Backlog / Todo | Qualification / refined retained work / ready near-term selection. Selection does not mean execution. |

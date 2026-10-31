@@ -29,14 +29,15 @@ Consultation alone does not start execution.
    and choose meaningful evidence. Never reproduce destructive or physical-access
    effects in production as setup. Test-first is not a universal ceremony.
 6. Choose setup/checks from CONTRIBUTING and component docs, including broader
-   required gates. State affected behavior, controlling sources, documentation
+   required gates. Follow configured agent and repository review/CI/merge policy;
+   resolve conflicts without imposing a global provider or merge method. State affected behavior, controlling sources, documentation
    impact, verification and unavailable/skipped coverage before editing. Continue
    routine authorized implementation without ceremonial approval.
 
 Technical facts stay in the product repository. Maintain guidance only for concrete
 findings. For preparation/monitoring process migration, preserve existing source
 procedures until replacement discovery/loading and exact version are verified in
-an actual executor. Retain the product repository's technical release skill.
+an actual executor. Preserve applicable product-specific technical procedures.
 Handoff: implementation/review evidence goes to
 [reconcile-execution](../reconcile-execution/SKILL.md); publication separately invokes
 [conduct-release](../conduct-release/SKILL.md). Preparation grants no release authority.
