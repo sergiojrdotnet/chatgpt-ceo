@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "license": "MIT",
-  "description": "Single-company configuration MCP and coordination skills.",
+  "description": "Single-company configuration and coordination-history MCP server.",
   "engines": {
     "node": ">=24.13 <27"
   },
