@@ -29,7 +29,9 @@ History is governed by the [coordination event contract](coordination-events.md)
 Use issue-filtered history before dispatch/retry and after interruption; it is
 observed evidence, never operational authority or a replacement for Linear.
 
-Configuration format is `schemaVersion: 2`. Release windows and observation
+Configuration format is `schemaVersion: 2`. Agent `instructions` are optional extra
+startup context: omit the property when none is approved. Supplied instructions
+must remain nonblank; absence is not an empty string or a fabricated placeholder. Release windows and observation
 minimums are not CEO configuration. Applicable project/repository procedures and
 explicit authorized task instructions supply release requirements; do not invent
 global defaults. Release coordination and its immutable events remain supported.

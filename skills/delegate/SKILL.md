@@ -19,7 +19,7 @@ Use the same revision for all configuration reads; follow the linked contract.
 2. Read the private configuration's entire `agents` list and use each description to
    assess fit for the issue's outcome, constraints and required capabilities.
    Choose one configured agent by stable ID and use its WHOLE template: model,
-   effort, startup instructions and optional environment ID string. These are session execution templates, not
+   effort, optional extra startup instructions and optional environment ID string. These are session execution templates, not
    persistent autonomous agents. If no entry fits, report the missing configuration;
    if several remain equally suitable, resolve the ambiguity before dispatch.
    Do not choose the first entry arbitrarily or recombine settings across entries.
@@ -42,9 +42,10 @@ Use the same revision for all configuration reads; follow the linked contract.
    Follow the [event contract](../../references/coordination-events.md) for retries,
    attribution and uncertainty. A planned event is neither dispatch nor a lock.
 5. Send the issue ID, required process skill, the selected agent's `instructions`
-   and only genuinely additional context. `description` is for choosing the agent;
+   when present, and only genuinely additional context. When instructions are absent,
+   omit that extra context without inventing placeholders or blocking dispatch. `description` is for choosing the agent;
    `instructions` is executor startup context (role, tools/context, custom guidance).
-   Forward it without duplicating the issue. Instructions do not prove tool access,
+   Forward supplied instructions without duplicating the issue. Instructions do not prove tool access,
    expand authority or override user/platform constraints, issue scope or required
    process. Resolve conflicts before dependent dispatch; never embed credentials.
    Require the executor to read the entire issue and relevant comments/references.

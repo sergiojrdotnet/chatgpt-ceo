@@ -203,7 +203,7 @@ test("unsafe JSON integers never commit an unreadable configuration revision", (
   }
 });
 
-test("clean schema 3 excludes release storage and restores only inactive schema 2 policy", async () => {
+test("clean schema 4 excludes release storage and restores only inactive schema 2 policy", async () => {
   const { DatabaseSync } = await import("node:sqlite");
   const dir = mkdtempSync(join(tmpdir(), "ceo-clean-"));
   const oldPath = join(dir, "old.sqlite");
@@ -217,7 +217,7 @@ test("clean schema 3 excludes release storage and restores only inactive schema 
     const s = new Store(path);
     const db = new DatabaseSync(path);
     try {
-      assert.equal(db.prepare("PRAGMA user_version").get()!.user_version, 3);
+      assert.equal(db.prepare("PRAGMA user_version").get()!.user_version, 4);
       assert.equal(db.prepare("SELECT count(*) n FROM sqlite_master WHERE type='table' AND name LIKE 'release_%'").get()!.n, 0);
       assert.ok(!db.prepare("PRAGMA table_info(policy)").all().some(c => c.name === "observation_minutes"));
       assert.deepEqual(s.adminRead(), { schemaVersion: 2, revision: 0, setupRequired: true, configuration: null, digest: null });

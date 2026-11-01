@@ -81,12 +81,27 @@ in a fresh conversation. Local SDK tests do not establish installed-host behavio
 See [OpenAI connection testing](https://developers.openai.com/plugins/deploy/connect-chatgpt)
 for the client connection and verification flow.
 
-## Clean schema replacement
+## Optional agent instructions upgrade
 
-Database schema `user_version=3` and configuration `schemaVersion: 2` require a
-clean dedicated CEO database; existing schema-2 databases are rejected with
-`CLEAN_DATABASE_REQUIRED`. There is no legacy data
-migration, compatibility endpoint or fabricated history. For an explicitly authorized
+Database schema 4 accepts existing schema-3 databases and transactionally rebuilds
+only `agents` to allow NULL instructions. All existing values, configuration
+revisions/digests, events, audit, retry records and store identity are preserved.
+Configuration remains schemaVersion 2. No reset, configuration update or activation
+is part of this upgrade. Take a verified backup, stop the old service, and start
+only the reviewed new image against the same volume. Verify schema 4, integrity,
+foreign keys and identical logical data before accepting publication. Then verify
+that an authorized proposal without instructions validates and reads back without
+that property when saved through the normal reviewed configuration workflow.
+
+The old image does not support schema 4; do not point it at the upgraded database.
+Recovery requires the matching pre-upgrade backup and old image, with reconciliation
+of any writes made after the backup. A migration failure rolls back atomically.
+
+## Older incompatible schema replacement
+
+Database schemas older than 3 are rejected with `CLEAN_DATABASE_REQUIRED`.
+There is no migration from those older schemas, compatibility endpoint or
+fabricated history. This section does not apply to the schema-3 upgrade above. For an explicitly authorized
 reset, first privately verify the exact CEO service, database path and mounted volume
 against inspection; stop that service, verify the backup and preserve the approved
 inactive policy values outside source. Reset only that identified CEO database,

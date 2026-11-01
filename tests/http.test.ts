@@ -442,3 +442,24 @@ test("SDK v2 negotiates dated protocol versions and serves current stateless dis
     await f.r.close();
   }
 });
+
+test("SDK validates and saves five agents without extra instructions, preserving absence", async () => {
+  const f = await fixture();
+  const admin = await f.client("admin@example.test"), reader = await f.client("reader@example.test");
+  try {
+    const agents = Array.from({ length: 5 }, (_, i) => {
+      const { instructions, ...rest } = example.agents[0];
+      return { ...rest, id: `agent-${i}` };
+    });
+    const proposal = { ...example, agents };
+    const validated = data(await admin.callTool({ name: "validate_configuration", arguments: { configuration: proposal } }));
+    assert.deepEqual(validated.configuration, proposal);
+    assert.equal(validated.reviewDigest, digest(proposal));
+    data(await admin.callTool({ name: "update_configuration", arguments: { configuration: proposal, expectedRevision: 0, reviewDigest: validated.reviewDigest, requestId: "optional-setup" } }));
+    const read = data(await reader.callTool({ name: "get_agents", arguments: { expectedRevision: 1 } }));
+    assert.deepEqual(read.data.agents, agents);
+    assert.equal(read.active, false);
+    assert.equal(read.executionEnabled, false);
+    assert.deepEqual(data(await admin.callTool({ name: "get_configuration", arguments: {} })).configuration, proposal);
+  } finally { await admin.close(); await reader.close(); await f.r.close(); }
+});

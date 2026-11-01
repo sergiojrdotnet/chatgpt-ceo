@@ -12,6 +12,7 @@ import {
   listEventsSchema,
 } from "./model.ts";
 import type { CoordinationEvent, Agent } from "./model.ts";
+const agentsDefinition = `(revision INTEGER NOT NULL REFERENCES policy(revision),id TEXT NOT NULL,position INTEGER NOT NULL CHECK(position>=0),name TEXT NOT NULL,description TEXT NOT NULL,instructions TEXT,model TEXT NOT NULL,effort TEXT NOT NULL CHECK(effort IN('low','medium','high','xhigh','max','ultra')),environment TEXT,PRIMARY KEY(revision,id),UNIQUE(revision,position)) STRICT`;
 type Row = Record<string, string | number | null>;
 export class Store {
   private db: DatabaseSync;
@@ -32,8 +33,17 @@ export class Store {
             "SELECT 1 FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' LIMIT 1",
           )
           .get();
-        if ((hasTables && version !== 3) || (!hasTables && version !== 0)) {
+        if ((hasTables && version !== 3 && version !== 4) || (!hasTables && version !== 0)) {
           fail("CLEAN_DATABASE_REQUIRED");
+        }
+
+        // Schema 3 -> 4 changes only instructions nullability. Copy every value
+        // unchanged; no configuration revision, digest, event or identity is reset.
+        if (version === 3) {
+          this.db.exec(`CREATE TABLE agents_next${agentsDefinition};
+            INSERT INTO agents_next SELECT * FROM agents;
+            DROP TABLE agents;
+            ALTER TABLE agents_next RENAME TO agents;`);
         }
 
         this.db.exec(`CREATE TABLE IF NOT EXISTS policy(
@@ -48,7 +58,7 @@ export class Store {
       ) STRICT;
       CREATE TABLE IF NOT EXISTS bindings(revision INTEGER PRIMARY KEY REFERENCES policy(revision),linear_workspace TEXT NOT NULL,linear_team TEXT NOT NULL,erp_connection TEXT NOT NULL) STRICT;
       CREATE TABLE IF NOT EXISTS repositories(revision INTEGER NOT NULL REFERENCES policy(revision),position INTEGER NOT NULL CHECK(position>=0),repository TEXT NOT NULL,PRIMARY KEY(revision,position),UNIQUE(revision,repository)) STRICT;
-      CREATE TABLE IF NOT EXISTS agents(revision INTEGER NOT NULL REFERENCES policy(revision),id TEXT NOT NULL,position INTEGER NOT NULL CHECK(position>=0),name TEXT NOT NULL,description TEXT NOT NULL,instructions TEXT NOT NULL,model TEXT NOT NULL,effort TEXT NOT NULL CHECK(effort IN('low','medium','high','xhigh','max','ultra')),environment TEXT,PRIMARY KEY(revision,id),UNIQUE(revision,position)) STRICT;
+      CREATE TABLE IF NOT EXISTS agents${agentsDefinition};
       CREATE TABLE IF NOT EXISTS coordination_events(
         seq INTEGER PRIMARY KEY CHECK(seq>0),event_id TEXT NOT NULL UNIQUE,
         action TEXT NOT NULL CHECK(action IN('planning','selection','delegation','execution','release-plan','publication','handoff','validation','incident','administration','configuration','correction')),
@@ -94,7 +104,7 @@ export class Store {
               `CREATE TRIGGER IF NOT EXISTS immutable_${table}_${operation} BEFORE ${operation} ON ${table} BEGIN SELECT RAISE(ABORT,'IMMUTABLE_RECORD'); END;`,
             );
         }
-        this.db.exec("PRAGMA user_version=3");
+        this.db.exec("PRAGMA user_version=4");
       });
       if (path !== ":memory:") chmodSync(path, 0o600);
     } catch (error) {
@@ -189,7 +199,7 @@ export class Store {
       id: String(a.id),
       name: String(a.name),
       description: String(a.description),
-      instructions: String(a.instructions),
+      ...(a.instructions === null ? {} : { instructions: String(a.instructions) }),
       model: String(a.model),
       effort: String(a.effort),
       ...(a.environment === null ? {} : { environment: String(a.environment) }),
@@ -337,7 +347,7 @@ export class Store {
             i,
             a.name,
             a.description,
-            a.instructions,
+            a.instructions ?? null,
             a.model,
             a.effort,
             a.environment ?? null,
