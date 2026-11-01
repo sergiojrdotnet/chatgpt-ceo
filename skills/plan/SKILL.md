@@ -22,7 +22,9 @@ Use the same revision for all configuration reads; follow the linked contract.
 3. Work top-down from business outcomes through initiatives, projects and
    meaningful milestones to executable issues. Projects need an initiative;
    project issues need a milestone. Justified standalone incidents/requests need
-   no artificial project. Search for duplication and obsolete assumptions.
+   no artificial project. Search for duplication and obsolete assumptions. The
+   coordinator qualifies Triage items and writes Backlog when refined work is
+   retained, following [state evidence](../../references/state-evidence.md).
 4. Revisit priorities, dependency constraints, capacity, start expectations and
    target forecasts. Dates are evidence-based forecasts, not unconditional
    promises. Preserve real dependency links; do not manufacture ordering blockers.
@@ -32,7 +34,8 @@ Use the same revision for all configuration reads; follow the linked contract.
    research findings go in comments, without extra research documents.
 6. Record meaningful project/initiative changes and recommendations, with reasons
    and remaining uncertainty. Escalate only actual reserved decisions with a
-   concrete recommendation; avoid repetitive empty updates.
+   concrete recommendation; avoid repetitive empty updates. Project or initiative
+   closure requires explicit user approval; completing issues is not that approval.
 
 Handoff: [select-work](../select-work/SKILL.md) selects ready work within current
 capacity. Planning does not dispatch executors or create schedules.
@@ -40,5 +43,9 @@ capacity. Planning does not dispatch executors or create schedules.
 Append a `planning` event through `append_coordination_event` for a material
 priority, milestone or scope decision, with the short objective reason and observed
 Linear result. Use canonical project/issue scope and references, not a copied plan.
+For initiative-only decisions, use a genuinely owning project or coordination
+issue as the event scope and reference the initiative decision evidence. If none
+exists, record the decision and unsupported event scope in Linear; do not fabricate
+an ID, mislabel an initiative as a project, or create an artificial scope.
 Follow the [event contract](../../references/coordination-events.md) for payload,
 attribution and recovery.

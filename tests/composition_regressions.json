@@ -159,5 +159,129 @@
       "Omit instructions from the configuration and extra handoff context; do not invent placeholders or block on absence.",
       "Still include the issue ID and applicable process skill, and require issue/comment reading; preserve model, effort, environment and authority boundaries."
     ]
+  },
+  {
+    "name": "explicit-status-writers",
+    "skills": [
+      "plan",
+      "select-work",
+      "prepare-code-change",
+      "conduct-release",
+      "reconcile-execution"
+    ],
+    "steps": [
+      "An unqualified request is retained after triage, selected from Backlog, dispatched, implemented as a draft, made ready for review, merged with publication required, published and functionally accepted. Name each status writer.",
+      "Contrast a draft-only administrative issue requiring no PR or publication."
+    ],
+    "expected": [
+      "Coordinator plan qualifies Triage to Backlog; coordinator select-work writes Todo. Executor writes actual-start In Progress; implementer writes In Review when ready and Awaiting Release after confirmed merge requiring publication.",
+      "Responsible validation executor writes In Validation and Done with acceptance evidence/readback. Coordinator reconciles missed or conflicting bookkeeping without duplicating completed transitions.",
+      "Administrative executor verifies the saved draft in In Validation and writes Done only when its acceptance passes; no fictional review/release."
+    ]
+  },
+  {
+    "name": "nonhuman-blocker-phase",
+    "skills": [
+      "select-work",
+      "reconcile-execution"
+    ],
+    "steps": [
+      "An issue is Awaiting Release but provider availability blocks publication; no user action can resolve it. A second issue requires the user to choose an authorized destination."
+    ],
+    "expected": [
+      "Preserve Awaiting Release, owner and next condition for provider blocker; do not regress to Todo or move to Needs Input.",
+      "Needs Input only for the concrete user destination decision, with impact, attempts and recommendation."
+    ]
+  },
+  {
+    "name": "project-initiative-closure-approval",
+    "skills": [
+      "plan",
+      "reconcile-execution"
+    ],
+    "steps": [
+      "All issues passed acceptance. The user said finish all the work, but did not approve closing the project or initiative.",
+      "The user explicitly approves closing one named project; an initiative also has no remaining work."
+    ],
+    "expected": [
+      "Complete accepted issues with evidence; keep project and initiative open pending explicit closure approval.",
+      "Approval covers only the named project; do not infer initiative closure authority."
+    ]
+  },
+  {
+    "name": "meaningful-execution-events",
+    "skills": [
+      "prepare-code-change",
+      "reconcile-execution",
+      "operate-administration"
+    ],
+    "steps": [
+      "An executor starts real work, repeatedly reads unchanged CI, then presents a review-ready deliverable and encounters a newly evidenced gate failure.",
+      "A previously reported event append times out and the external action may already have happened."
+    ],
+    "expected": [
+      "Record execution for actual start and material review-ready/gate outcomes with evidence, not every query or unchanged CI poll. Repository guidance retains PR mechanics.",
+      "Inspect existing evidence and preserve uncertainty/retry identity; do not repeat an external action to repair event bookkeeping."
+    ]
+  },
+  {
+    "name": "snapshot-versus-timed-observation",
+    "skills": [
+      "monitor-system"
+    ],
+    "steps": [
+      "Request a bounded baseline review of the preceding fifteen minutes of logs, with no future monitoring duration.",
+      "Request continuous release observation with no explicit duration or approved runbook default."
+    ],
+    "expected": [
+      "Perform authorized bounded snapshot review without inventing or demanding a wait duration; report sample range, freshness and coverage as a validation outcome.",
+      "Report the missing timed duration; do not count the snapshot as continuous release observation. Independently authorized baseline work can continue."
+    ]
+  },
+  {
+    "name": "initiative-event-scope",
+    "skills": [
+      "plan"
+    ],
+    "steps": [
+      "An initiative-only priority decision has a genuinely owning project with a recorded decision reference.",
+      "A second initiative has no owning project or coordination issue."
+    ],
+    "expected": [
+      "Use the real owning project scope and reference initiative evidence.",
+      "Record decision and unsupported event scope in Linear; no fake ID, artificial issue or initiative mislabeled as project; no schema extension."
+    ]
+  },
+  {
+    "name": "publication-writer-and-handoff",
+    "skills": [
+      "conduct-release",
+      "reconcile-execution"
+    ],
+    "steps": [
+      "The release executor appended per-issue/destination publication events with shared correlation; coordinator receives its result.",
+      "Another executor cannot append and supplies protected evidence. Contrast an append timeout whose outcome is unknown.",
+      "Coordinator then resumes the original implementation session and receives a timeout."
+    ],
+    "expected": [
+      "Coordinator checks history/results and does not duplicate publication events.",
+      "Only after resolving existing/uncertain append outcomes, an authorized coordinator may append a sourced fallback under its own producer identity when executor cannot append.",
+      "Coordinator records distinct uncertain handoff with actual IDs/correlation; inspect target before retry. Original implementer owns actual validation and acceptance transitions."
+    ]
+  },
+  {
+    "name": "release-guidance-without-extra-instructions",
+    "skills": [
+      "conduct-release",
+      "delegate"
+    ],
+    "steps": [
+      "The chosen profile omits optional instructions, but root AGENTS.md references a release-change skill and an application runbook.",
+      "An applicable required runbook is inaccessible."
+    ],
+    "expected": [
+      "Discover root and applicable nested AGENTS.md and referenced technical release procedures despite absent profile instructions; preserve optional instructions behavior.",
+      "Missing required technical guidance blocks dependent publication, not authorized independent read-only evidence review. Do not invent release mechanics."
+    ]
   }
 ]

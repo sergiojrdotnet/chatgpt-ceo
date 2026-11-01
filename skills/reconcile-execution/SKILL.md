@@ -39,10 +39,15 @@ Use the same revision for all configuration reads; follow the linked contract.
    Progress; an administrative draft can satisfy a draft-only acceptance outcome.
    Merge is not publication; publication is not acceptance. Compare every
    criterion and unresolved regression. Correct mismatched automated transitions
-   and verify readback. Review/CI/observation waiting remains owned capacity.
+   and verify readback. Responsible executors own their normal transitions; the
+   coordinator reconciles omissions/conflicts using sourced evidence and checks
+   existing events before adding a distinct reconciliation result. Preserve the
+   last truthful phase, owner and next condition for nonhuman blockers.
+   Review/CI/observation waiting remains owned capacity.
 6. Append `execution` events for meaningful blocked/recovered/reconciled outcomes
    and `validation` events for acceptance outcomes using `append_coordination_event`;
-   preserve the actual producing session and evidence. Record concise findings,
+   preserve actual session attribution and evidence; a sourced relay uses the
+   coordinator's own producer identity, never impersonation. Record concise findings,
    precise gaps, owner and next check in the issue.
    Distinguish failed, denied, pending and uncertain actions; Needs Input only when
    the user must actually act. Continue independent authorized work.

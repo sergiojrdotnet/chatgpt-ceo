@@ -73,7 +73,7 @@
   },
   {
     "skill": "monitor-system",
-    "prompt": "Dry run only: an independent observation request provides no duration and no approved private/runbook default. A configured telemetry source is stale and another is inaccessible. What is the outcome and what calls should start?",
+    "prompt": "Dry run only: an independent timed-monitoring request provides no duration and no approved private/runbook default. A configured telemetry source is stale and another is inaccessible. What is the outcome and what calls should start?",
     "mustPreserve": [
       "missing duration reported, no invented default",
       "no live calls or timer from dry-run invocation",

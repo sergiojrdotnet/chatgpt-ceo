@@ -56,6 +56,27 @@ so concurrent new events appear only in a fresh traversal. Cursors are opaque,
 store-bound, filter-bound and invalid after a clean reset. Do not infer absence from
 one page. This bounded listing is also the future dashboard's read API.
 
+## Meaningful lifecycle ownership
+
+The [state contract](state-evidence.md) names the status writer. The responsible
+executor appends `execution` for actual start, material review-ready and gate
+changes, and `validation` for observed acceptance or bounded verification results.
+A bounded snapshot is labeled as sampled evidence, never continuous observation.
+Do not create events for every query, unchanged CI poll or repeated status read.
+Use the existing action/scope enums; a status change is not a new event category.
+
+For a release, the assigned release executor primarily appends `publication` per
+issue/destination. The coordinator inspects existing events/results first and uses
+a sourced fallback only when the executor cannot append, under its own producer
+identity and with executor evidence. Resolve an uncertain append before fallback.
+The coordinator separately appends `handoff` after an observed resume result,
+preserving actual IDs, correlation and honest uncertainty.
+
+Initiatives are not an event scope. Reference initiative planning evidence from a
+genuinely owning project or coordination issue. If no such scope exists, record
+the decision and unsupported event scope in Linear rather than fabricating IDs or
+mislabeling scope. No new scope/schema or artificial issue is required.
+
 ## Recovery and attribution
 
 The same authenticated producer/request ID and normalized input return the original

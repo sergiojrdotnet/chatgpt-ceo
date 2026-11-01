@@ -56,3 +56,31 @@ class Skills(unittest.TestCase):
         for name in ('plan', 'select-work', 'delegate', 'reconcile-execution',
                      'conduct-release', 'coordinate-incidents', 'operate-administration', 'setup'):
             self.assertIn('append_coordination_event', (ROOT / f'skills/{name}/SKILL.md').read_text())
+
+    def test_handoff_contract_and_scenario_coverage(self):
+        state = (ROOT / 'references/state-evidence.md').read_text()
+        for stage, writer in (
+            ('Triage qualification', 'Coordinator using plan'),
+            ('Backlog → Todo', 'Coordinator using select-work'),
+            ('Actual start → In Progress', 'Responsible executor'),
+            ('Ready deliverable → In Review', 'Implementer'),
+            ('Merge requiring publication → Awaiting Release', 'Implementer'),
+            ('Actual acceptance checking → In Validation', 'Responsible validation executor'),
+            ('Verified issue acceptance → Done', 'Responsible executor'),
+        ):
+            row = next(line for line in state.splitlines() if line.startswith('| ' + stage))
+            self.assertEqual(row.split('|')[2].strip(), writer)
+        self.assertIn('closure always requires explicit user approval', state)
+        self.assertIn('Preserve the last truthful phase', state)
+        self.assertIn('state-evidence.md', (ROOT / 'references/configuration.md').read_text())
+        cases = json.loads((ROOT / 'tests/composition_regressions.json').read_text())
+        by_name = {case['name']: case for case in cases}
+        self.assertEqual(len(by_name), len(cases))
+        for name in ('explicit-status-writers', 'nonhuman-blocker-phase',
+                     'project-initiative-closure-approval', 'meaningful-execution-events',
+                     'snapshot-versus-timed-observation', 'initiative-event-scope',
+                     'publication-writer-and-handoff', 'release-guidance-without-extra-instructions'):
+            case = by_name[name]
+            self.assertTrue(case['steps'])
+            self.assertGreaterEqual(len(case['expected']), 2)
+            self.assertTrue(set(case['skills']).issubset(SKILLS))
