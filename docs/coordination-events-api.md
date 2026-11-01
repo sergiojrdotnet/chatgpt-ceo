@@ -62,4 +62,3 @@ Configuration writes and event writes share this request namespace. After a time
 retry only that exact request, or inspect history before choosing a new request ID.
 SQLite transactions make event/evidence/idempotency storage atomic, not an external
 dispatch/payment/publication. There is no distributed lock or exactly-once claim.
-
