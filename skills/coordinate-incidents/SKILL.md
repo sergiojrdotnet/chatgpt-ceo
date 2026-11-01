@@ -19,7 +19,10 @@ Use the same revision for all configuration reads; follow the linked contract.
 2. Refresh the [configuration contract](../../references/configuration.md), scope and
    available access. An urgent capacity/release exception is scoped to justified
    restoration, not blanket authority or general resumption of paused work.
-3. Assign investigation, recovery and communication ownership with next checkpoints.
+3. Assign investigation, recovery and communication ownership with next conditions.
+   Named executors own actual-start/verification transitions under
+   [state evidence](../../references/state-evidence.md); the coordinator reconciles
+   the incident issue from sourced restoration evidence, not command success.
    Use [monitor-system](../monitor-system/SKILL.md) for fresh evidence and
    [delegate](../delegate/SKILL.md) for capability-bound execution. Keep the Linear
    timeline, hypotheses and known facts distinct; unknown telemetry is not health.

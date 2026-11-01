@@ -25,6 +25,9 @@ lost access stops new dependent actions at the next boundary; reconcile existing
 work safely without automatic reactivation. Current user/platform permissions and
 issue scope prevail; repository guidance controls technical execution.
 
+All skills follow the [state and evidence contract](state-evidence.md) for status
+writers, blockers and explicit user approval before project/initiative closure.
+
 History is governed by the [coordination event contract](coordination-events.md).
 Use issue-filtered history before dispatch/retry and after interruption; it is
 observed evidence, never operational authority or a replacement for Linear.

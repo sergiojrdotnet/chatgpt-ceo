@@ -32,7 +32,9 @@ Use the same revision for all configuration reads; follow the linked contract.
    overrides calendar guesses; weekday overnight work can await next-day evidence.
    Administrative hours are a preference, not a ban. Missing required input is a
    blocker; likely input delay merely lowers preference when alternatives exist.
-6. Record selected issues, rationale and unresolved conditions in Linear. Recheck
+6. As coordinator, move selected ready Backlog issues to Todo, verify readback and
+   record rationale and unresolved conditions in Linear. Preserve truthful phases
+   and ownership for blocked work under [state evidence](../../references/state-evidence.md). Recheck
    capacity just before dispatch; simultaneous coordinators require ownership
    reconciliation, not an assumed distributed admission guarantee.
 

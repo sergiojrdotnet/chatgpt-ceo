@@ -15,7 +15,11 @@ Use the same revision for all configuration reads; follow the linked contract.
 1. FIRST read the entire current issue and relevant comments/references, including
    acceptance and newer decisions. Missing essentials are explicit gaps. Establish
    In Progress before substantive execution, only if needed, and verify readback;
-   report a failed transition truthfully without activating unrelated work.
+   report a failed transition truthfully without activating unrelated work. Apply
+   [state evidence](../../references/state-evidence.md) and append an `execution`
+   event for actual start with the observed result and issue evidence, following
+   the [event contract](../../references/coordination-events.md). Consultation or
+   a repeated read does not create a start event.
 2. Refresh the [configuration contract](../../references/configuration.md) for dependent
    work. Establish repository, target revision, branch/worktree and dirty state.
    Verify the session actually targets the intended checkout; preserve user changes
@@ -42,5 +46,7 @@ findings. For preparation/monitoring process migration, preserve existing source
 procedures until replacement discovery/loading and exact version are verified in
 an actual executor. Preserve applicable product-specific technical procedures.
 Handoff: provide the implementation and validation approach to the code executor.
-Repository instructions govern subsequent contribution work. This skill ends at
-preparation and grants no publication authority.
+Repository instructions govern subsequent contribution work. The shared state
+contract assigns later review-ready/merge/validation transitions and meaningful
+events to their responsible executors; this preparation skill does not own PR
+mechanics. This skill ends at preparation and grants no publication authority.
