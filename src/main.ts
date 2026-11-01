@@ -1,3 +1,4 @@
+import { ClickHouse } from "./clickhouse.ts";
 import { app } from "./app.ts";
 function required(name: string) {
   const v = process.env[name]?.trim();
@@ -34,7 +35,13 @@ const application = app({
   readers: emails("READ_EMAILS"),
   admins: emails("ADMIN_EMAILS"),
   eventWriters: emails("EVENT_EMAILS"),
-  databasePath: required("DATABASE_PATH"),
+  configPath: required("CONFIG_PATH"),
+  eventDatabase: new ClickHouse({
+    url: required("CLICKHOUSE_URL"),
+    database: required("CLICKHOUSE_DATABASE"),
+    username: required("CLICKHOUSE_USER"),
+    password: required("CLICKHOUSE_PASSWORD"),
+  }),
 });
 const port = Number(process.env.PORT ?? "3000");
 if (!Number.isInteger(port) || port < 1 || port > 65535)

@@ -5,11 +5,16 @@ import type { AuthConfig } from "./auth.ts";
 import type { JWTVerifyGetKey } from "jose";
 import { mcp } from "./mcp.ts";
 import { Store } from "./store.ts";
+import type { EventDatabase } from "./clickhouse.ts";
 export function app(
-  config: AuthConfig & { databasePath: string; publicOrigin: string },
+  config: AuthConfig & {
+    configPath: string;
+    eventDatabase: EventDatabase;
+    publicOrigin: string;
+  },
   keys?: JWTVerifyGetKey,
 ) {
-  const store = new Store(config.databasePath),
+  const store = new Store(config.configPath, config.eventDatabase),
     authenticate = authentication(config, keys),
     handler = mcp(store);
   const nodeHandler = toNodeHandler(
@@ -43,7 +48,7 @@ export function app(
       if (req.url === "/healthz" && req.method === "GET")
         return json(200, { status: "ok" });
       if (req.url === "/readyz" && req.method === "GET") {
-        store.ready();
+        await store.ready();
         return json(200, { status: "ready" });
       }
       if (req.url !== "/mcp") return json(404, { error: "NOT_FOUND" });

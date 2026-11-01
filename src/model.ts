@@ -75,6 +75,7 @@ export function configuration(input: unknown): Configuration {
   )
     fail("INVALID_TIMESTAMP");
   const cap = c.capacity;
+  if (!Object.values(cap).every(Number.isSafeInteger)) fail("INVALID_CAPACITY");
   if (
     !(
       cap.preferredMin <= cap.preferredMax &&
@@ -87,7 +88,9 @@ export function configuration(input: unknown): Configuration {
     fail("DUPLICATE_AGENT_ID");
   if (c.active && c.executionEnabled && !c.agents.length)
     fail("AGENTS_REQUIRED");
-  if (c.selection.administrativeHours.start >= c.selection.administrativeHours.end)
+  if (
+    c.selection.administrativeHours.start >= c.selection.administrativeHours.end
+  )
     fail("INVALID_WINDOW");
   // Closed schema: references only, no credential bags or arbitrary settings.
   if (
@@ -131,11 +134,13 @@ const timestamp = z.iso
     "Invalid timestamp",
   )
   .transform((v) => new Date(v).toISOString());
+const uuid = z.uuid().transform((value) => value.toLowerCase());
 export const eventSchema = z
   .object({
     action: actionSchema,
     scope: z.object({ type: scopeTypeSchema, id: identifier }).strict(),
-    issueId: identifier.optional(),
+    issueId: uuid.optional(),
+    issueIdentifier: z.string().trim().min(1).max(160).optional(),
     phase: z.enum(["implementation", "release", "validation"]).optional(),
     reason: z.string().trim().min(1).max(1000),
     result: z.string().trim().min(1).max(2000),
@@ -152,14 +157,16 @@ export const eventSchema = z
     threadId: identifier.optional(),
     turnId: identifier.optional(),
     correlationId: identifier.optional(),
-    correctsEventId: z.uuid().optional(),
+    correctsEventId: uuid.optional(),
   })
   .strict()
   .superRefine((e, ctx) => {
     const problem = (message: string) =>
       ctx.addIssue({ code: "custom", message });
     if (e.turnId && !e.threadId) problem("Turn ID requires thread ID");
-    if (e.scope.type === "issue" && e.issueId !== e.scope.id)
+    if (e.issueIdentifier && !e.issueId)
+      problem("Issue identifier requires issue UUID");
+    if (e.scope.type === "issue" && e.issueId !== e.scope.id.toLowerCase())
       problem("Issue scope requires matching canonical issueId");
     if (["confirmed", "failed"].includes(e.outcome) && !e.evidenceRefs.length)
       problem("Confirmed or failed outcome requires evidence");
@@ -175,17 +182,24 @@ export const eventSchema = z
       )
     )
       problem("Credential material forbidden");
-  });
+  })
+  .transform((e) => ({
+    ...e,
+    scope:
+      e.scope.type === "issue"
+        ? { ...e.scope, id: e.scope.id.toLowerCase() }
+        : e.scope,
+  }));
 export const appendEventSchema = z
   .object({
-    requestId: identifier,
-    expectedRevision: z.number().int().positive(),
+    expectedDigest: z.string().regex(/^[a-f0-9]{64}$/),
     event: eventSchema,
   })
   .strict();
 export const listEventsSchema = z
   .object({
-    issueId: identifier.optional(),
+    eventId: uuid.optional(),
+    issueId: uuid.optional(),
     scopeType: scopeTypeSchema.optional(),
     scopeId: identifier.optional(),
     action: actionSchema.optional(),
@@ -197,6 +211,12 @@ export const listEventsSchema = z
   })
   .strict()
   .superRefine((f, ctx) => {
+    if (
+      f.scopeType === "issue" &&
+      f.scopeId &&
+      !z.uuid().safeParse(f.scopeId).success
+    )
+      ctx.addIssue({ code: "custom", message: "Issue scope requires a UUID" });
     if (f.scopeId && !f.scopeType)
       ctx.addIssue({ code: "custom", message: "scopeId requires scopeType" });
     if (f.from && f.to && f.from > f.to)
@@ -209,8 +229,6 @@ export type CoordinationEvent = EventInput & {
   eventId: string;
   recordedAt: string;
   producerId: string;
-  configurationRevision: number;
-  configurationDigest: string;
 };
 export type Principal = {
   id: string;

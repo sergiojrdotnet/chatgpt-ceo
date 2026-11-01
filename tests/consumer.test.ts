@@ -2,13 +2,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { z } from "zod";
-import { Store } from "../src/store.ts";
+import { fixture as storageFixture } from "./helpers/fixture.ts";
 import { digest } from "../src/model.ts";
 import fixture from "../examples/inactive-a.json" with { type: "json" };
 const envelope = z
   .object({
     schemaVersion: z.literal(2),
-    revision: z.number().int().positive(),
     digest: z.string().regex(/^[a-f0-9]{64}$/),
     complete: z.literal(true),
     readAt: z.iso.datetime(),
@@ -23,22 +22,17 @@ const envelope = z
 function consume(
   read: (
     subject: "context" | "agents" | "selection",
-    revision?: number,
+    expectedDigest?: string,
   ) => unknown,
-  approved: { revision: number; digest: string },
+  approved: { digest: string },
   clock = Date.now,
 ) {
   const outputs = [];
-  for (const subject of [
-    "context",
-    "agents",
-    "selection",
-  ] as const) {
+  for (const subject of ["context", "agents", "selection"] as const) {
     const e = envelope.parse(
-      read(subject, subject === "context" ? undefined : approved.revision),
+      read(subject, subject === "context" ? undefined : approved.digest),
     );
     assert.equal(e.subject, subject);
-    assert.equal(e.revision, approved.revision);
     assert.equal(e.digest, approved.digest);
     const now = clock();
     assert.ok(
@@ -53,27 +47,25 @@ function consume(
   }
   return outputs;
 }
-test("partial, stale, inactive, unauthorized, unavailable and revision-changing reads yield no usable set", () => {
-  const s = new Store(":memory:");
+test("partial, stale, inactive, unauthorized, unavailable and digest-changing reads yield no usable set", () => {
+  const f = storageFixture(),
+    s = f.store;
   const c = {
     ...fixture,
     active: true,
     fixtureOnly: false,
     executionEnabled: true,
   };
-  const approved = { revision: 1, digest: digest(c) };
-  s.update("admin", "setup", 0, approved.digest, c);
+  const approved = { digest: digest(c) };
+  s.update(null, approved.digest, c);
   try {
-    const read = (
-      subject: "context" | "agents" | "selection",
-      r?: number,
-    ) => s.read(subject, r);
+    const read = (subject: "context" | "agents" | "selection", r?: string) =>
+      s.read(subject, r);
     assert.equal(consume(read, approved, Date.now).length, 3);
     for (const bad of [
       { complete: false },
       { readAt: "2000-01-01T00:00:00Z" },
       { digest: "a".repeat(64) },
-      { revision: 2 },
       { active: false },
       { fixtureOnly: true },
       { executionEnabled: false },
@@ -112,15 +104,18 @@ test("partial, stale, inactive, unauthorized, unavailable and revision-changing 
         consume(
           (subject, r) => {
             if (subject === "agents")
-              s.update("admin", "change", 1, approved.digest, c);
+              s.update(approved.digest, digest({ ...c, ownerRef: "changed" }), {
+                ...c,
+                ownerRef: "changed",
+              });
             return read(subject, r);
           },
           approved,
           Date.now,
         ),
-      /REVISION_CONFLICT/,
+      /CONFIGURATION_CONFLICT/,
     );
   } finally {
-    s.close();
+    f.cleanup();
   }
 });

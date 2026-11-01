@@ -21,10 +21,10 @@
         <fieldset id="controls" disabled>
           <legend>Filter history</legend>
           <label
-            >Issue identifier<input
+            >Issue UUID<input
               name="issueId"
               maxlength="160"
-              placeholder="SYN-123"
+              placeholder="Linear issue UUID"
               autocomplete="off"
           /></label>
           <label
@@ -63,9 +63,9 @@
         ><button id="next" disabled>Next page</button>
       </nav>
       <p class="note">
-        50 events per page. Refresh starts a new snapshot. Session navigation is
-        unavailable unless a canonical link has been verified; identifiers are
-        shown as text.
+        50 events per page. Pages are not a transactional snapshot; refresh to
+        include late inserts. Session navigation is unavailable unless a
+        canonical link has been verified; identifiers are shown as text.
       </p>
     </main>
     <!--SCRIPT-->
