@@ -4,23 +4,28 @@ import { createServer } from "node:http";
 import { existsSync, mkdirSync } from "node:fs";
 import { chromium } from "playwright";
 import { historyHtml } from "../src/history-ui.ts";
-import { Store } from "../src/store.ts";
+import { fixture, issue, otherIssue } from "./helpers/fixture.ts";
 import { digest } from "../src/model.ts";
 import config from "../examples/inactive-a.json" with { type: "json" };
 
 test("rendered MCP bridge: bounded 1205-event traversal, keyboard, narrow/dark, safe text and failure states", async () => {
-  const store = new Store(":memory:");
-  store.update("admin", "setup", 0, digest(config), config);
+  const f = fixture(),
+    store = f.store;
+  f.setup();
   let original = "";
   for (let i = 0; i < 1205; i++) {
-    const saved = store.appendEvent("writer", {
-      expectedRevision: 1,
-      requestId: `ui-${i}`,
+    if (i === 1204) await new Promise((r) => setTimeout(r, 3));
+    const saved = await store.appendEvent("writer", {
+      expectedDigest: digest(config),
       event: {
         action: i === 1204 ? "correction" : "execution",
         ...(i === 1204 ? { correctsEventId: original } : {}),
-        scope: i === 1 ? { type: "project", id: "PROJECT-1" } : { type: "issue", id: "SYN-1" },
-        issueId: "SYN-1",
+        scope:
+          i === 1
+            ? { type: "project", id: "PROJECT-1" }
+            : { type: "issue", id: issue },
+        issueId: issue,
+        issueIdentifier: "SYN-1",
         reason: '<img src=x onerror="window.pwned=true"> Synthetic decision',
         result: `Synthetic observed result ${i}`,
         outcome: "uncertain",
@@ -63,7 +68,7 @@ test("rendered MCP bridge: bounded 1205-event traversal, keyboard, narrow/dark, 
     });
     await page.exposeFunction(
       "fixtureCall",
-      (
+      async (
         params: { name: string; arguments: Record<string, unknown> },
         mode: string,
       ) => {
@@ -89,7 +94,7 @@ test("rendered MCP bridge: bounded 1205-event traversal, keyboard, narrow/dark, 
               nextCursor: null,
             },
           };
-        return { structuredContent: store.listEvents(params.arguments) };
+        return { structuredContent: await store.listEvents(params.arguments) };
       },
     );
     const errors: string[] = [];
@@ -98,8 +103,22 @@ test("rendered MCP bridge: bounded 1205-event traversal, keyboard, narrow/dark, 
     const ui = page.frameLocator("iframe");
     await ui.locator("article").first().waitFor();
     assert.equal(await ui.locator("article").count(), 50);
-    assert.equal(await ui.locator("article").first().locator('dt:text-is("Scope") + dd').textContent(), "issue");
-    assert.equal(await ui.locator("article").first().locator('dt:text-is("Issue") + dd').textContent(), "SYN-1");
+    assert.equal(
+      await ui
+        .locator("article")
+        .first()
+        .locator('dt:text-is("Scope") + dd')
+        .textContent(),
+      "issue",
+    );
+    assert.equal(
+      await ui
+        .locator("article")
+        .first()
+        .locator('dt:text-is("Issue") + dd')
+        .textContent(),
+      "SYN-1",
+    );
     assert.equal(await ui.locator("img").count(), 0);
     assert.equal(await ui.locator("a").count(), 0);
     assert.ok(
@@ -126,7 +145,7 @@ test("rendered MCP bridge: bounded 1205-event traversal, keyboard, narrow/dark, 
     for (let p = 1; p <= 25; p++) {
       await ui
         .locator("#status")
-        .filter({ hasText: `snapshot page ${p}` })
+        .filter({ hasText: `history page ${p}` })
         .waitFor();
       seen.push(
         ...(await ui.locator("details dl dd:first-of-type").allTextContents()),
@@ -135,9 +154,22 @@ test("rendered MCP bridge: bounded 1205-event traversal, keyboard, narrow/dark, 
       assert.ok((await ui.locator("*").count()) < 3000);
       if (p < 25) await ui.getByRole("button", { name: "Next page" }).click();
     }
-    const projectCard = ui.locator("article").filter({ has: ui.getByRole("heading", { name: "execution · PROJECT-1", exact: true }) });
-    assert.equal(await projectCard.locator('dt:text-is("Scope") + dd').textContent(), "project · PROJECT-1");
-    assert.equal(await projectCard.locator('dt:text-is("Issue") + dd').textContent(), "SYN-1");
+    const projectCard = ui
+      .locator("article")
+      .filter({
+        has: ui.getByRole("heading", {
+          name: "execution · PROJECT-1",
+          exact: true,
+        }),
+      });
+    assert.equal(
+      await projectCard.locator('dt:text-is("Scope") + dd').textContent(),
+      "project · PROJECT-1",
+    );
+    assert.equal(
+      await projectCard.locator('dt:text-is("Issue") + dd').textContent(),
+      "SYN-1",
+    );
     assert.equal(seen.length, 1205);
     assert.equal(new Set(seen).size, 1205);
     assert.equal(
@@ -166,17 +198,17 @@ test("rendered MCP bridge: bounded 1205-event traversal, keyboard, narrow/dark, 
     );
     await page.screenshot({ path: "/tmp/ceo-ui-evidence/dark-mobile.png" });
     await ui.getByLabel("Scope", { exact: true }).selectOption("issue");
-    await ui.getByLabel("Scope identifier", { exact: true }).fill("SYN-1");
+    await ui.getByLabel("Scope identifier", { exact: true }).fill(issue);
     await ui.getByRole("button", { name: "Apply filters" }).click();
     await ui.locator("article").first().waitFor();
-    await ui.getByLabel("Issue identifier", { exact: true }).fill("SYN-EMPTY");
+    await ui.getByLabel("Issue UUID", { exact: true }).fill(otherIssue);
     await ui.getByRole("button", { name: "Apply filters" }).click();
     await ui
       .locator("#status")
       .filter({ hasText: "No events match" })
       .waitFor();
     await page.screenshot({ path: "/tmp/ceo-ui-evidence/empty.png" });
-    await ui.getByLabel("Issue identifier", { exact: true }).fill("SYN-1");
+    await ui.getByLabel("Issue UUID", { exact: true }).fill(issue);
     await page.evaluate("window.delay=300");
     await ui.getByRole("button", { name: "Apply filters" }).click();
     assert.equal(await ui.locator("#events").getAttribute("aria-busy"), "true");
@@ -190,7 +222,7 @@ test("rendered MCP bridge: bounded 1205-event traversal, keyboard, narrow/dark, 
     for (const [mode, message] of [
       ["denied", "Access unavailable or expired"],
       ["error", "History is unavailable"],
-      ["cursor", "snapshot is no longer available"],
+      ["cursor", "cursor is no longer available"],
       ["oversize", "History is unavailable"],
     ]) {
       await page.evaluate(`window.mode='${mode}';window.delay=0`);
@@ -226,6 +258,6 @@ test("rendered MCP bridge: bounded 1205-event traversal, keyboard, narrow/dark, 
   } finally {
     await browser.close();
     await new Promise<void>((r) => server.close(() => r()));
-    store.close();
+    f.cleanup();
   }
 });

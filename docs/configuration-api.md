@@ -1,54 +1,56 @@
-# Configuration API
+# Current configuration API
 
-The runtime validates the closed [configuration schema](../references/policy.schema.json)
-and additional constraints in [model.ts](../src/model.ts). Configuration format is
-`schemaVersion: 2`; the SQLite storage schema is independently versioned. Database
-upgrade and recovery requirements are in [deployment](deployment.md).
+`CONFIG_PATH` identifies one current JSON file, validated against the closed
+[configuration schema](../references/policy.schema.json) and [model](../src/model.ts).
+The configuration shape remains `schemaVersion: 2`. There are no revision numbers,
+historical configurations, audit tables or request replay records.
 
-## Consistent subject reads
+## Reads
 
-`get_operation_context({expectedRevision?})` returns context and bindings.
-`get_agents({expectedRevision})` returns complete agent templates;
-`get_selection_policy({expectedRevision})` returns capacity, selection and timezone.
-All require current read authority. Each successful response contains
-`schemaVersion`, `revision`, `digest`, `complete`, `readAt`, `effectiveAt`, `active`,
-`fixtureOnly`, `executionEnabled`, `subject` and `data`.
+| Tool | Input | Authority |
+| --- | --- | --- |
+| `get_operation_context` | `{expectedDigest?}` | read |
+| `get_agents` | `{expectedDigest}` | read |
+| `get_selection_policy` | `{expectedDigest}` | read |
+| `get_configuration` | `{}` | admin |
 
-Read context first and pass its revision on dependent subject calls. Compare
-revision and digest across responses; do not combine partial or conflicting reads.
-No configuration yields `SETUP_REQUIRED`; a stale expected revision yields
-`REVISION_CONFLICT`. Revisions and their children are immutable. Clients must
-check response freshness and effective time before dependent decisions.
-Configuration is data, not an operational authorization grant. Execution flags do
-not cause the server to dispatch or activate work.
+Subject reads return `schemaVersion`, `digest`, `complete`, `readAt`, `effectiveAt`,
+`active`, `fixtureOnly`, `executionEnabled`, `subject` and `data`. Read context first,
+then pass its digest to dependent subject calls. A mismatch is
+`CONFIGURATION_CONFLICT`; absent configuration is `SETUP_REQUIRED`. Invalid or
+unreadable files fail closed, without a cached fallback. Clients check freshness,
+effective time and execution controls; configuration never grants authority.
 
-Agent `instructions` and `environment` are optional. Omitted instructions read back
-without that property; supplied instructions must be nonblank. No placeholder is
-required. Release windows and observation minimums are not configuration fields.
+Admin reads return `{schemaVersion, setupRequired, configuration, digest}`. Before
+setup, configuration and digest are null. Digest is SHA-256 of canonical current
+content, not a version/history identifier: restoring identical content restores
+its digest. Optional agent `instructions` remain absent when not supplied; provided
+instructions must be nonblank. Release policy is not a configuration field.
 
-## Reviewed writes
+## Writes
 
-`get_configuration({})` requires admin authority and returns `schemaVersion`,
-`revision`, `setupRequired`, `configuration` and `digest`. Before setup, revision is
-zero and configuration/digest are null.
+`validate_configuration({configuration})` requires admin and returns
+`{valid: true, reviewDigest, configuration}` without saving.
 
-`validate_configuration({configuration})` requires admin authority and returns
-`{valid: true, reviewDigest, configuration}` for a valid complete proposal. It does
-not save. `update_configuration({configuration, expectedRevision, reviewDigest,
-requestId})` requires admin authority and atomically saves the reviewed complete
-replacement, returning `{revision, digest}`. Initial setup uses expected revision
-zero. The digest must match that exact proposal; conflicts require rereading and
-reviewing the current proposal. There is no partial update endpoint.
+`update_configuration({configuration, expectedDigest, reviewDigest})` requires admin,
+validates the complete proposal and returns `{digest}` after replacement.
+`expectedDigest` must match current content; null requires an absent file.
+`reviewDigest` must match the exact proposal. There is no partial update, revision
+counter, request ID or replay guarantee. Unknown/obsolete arguments are rejected.
+After a lost response, read current configuration and compare the proposal; do not
+assume either success or failure or blindly repeat an update.
 
-Configuration is limited to 256 KiB. In addition to schema constraints, the server
-checks a valid timezone and timestamp, unique agent IDs, ordered capacity bounds,
-`urgentIncidentMax = activeMax + 1`, a nonempty agent list when both active and
-execution-enabled, and increasing administrative start/end times. Recognized
-credential material is rejected; this is not a credential vault.
+One server process owns the file. Writes are serialized synchronously within that
+process: write a unique mode-0600 file in the same directory, fsync, rename over the
+current file, then fsync the directory. Failed pre-rename writes preserve the old
+file. A failure after rename yields `CONFIGURATION_WRITE_UNCERTAIN`; reread the
+current file before deciding the next action. Normal completion leaves no temporary
+file; abrupt termination may leave a `.config-*.tmp` file for operator inspection.
+No multi-process writer, external live editing or network-filesystem guarantee is
+provided. Keep a writable directory mount, not a bind mount of a single file.
 
-The authenticated producer and request ID identify an idempotent write. An identical
-retry returns the original revision/digest; changed input produces
-`IDEMPOTENCY_CONFLICT`. Configuration and event writes share the request namespace.
-Revisions, child records, retry records and audit are stored transactionally.
-After an uncertain response, retry the identical request rather than inventing a
-new write. Reads and writes recheck their required authority on every call.
+Validation retains the 256 KiB bound, closed fields, valid timezone/timestamp,
+unique agent IDs, ordered capacity limits, `urgentIncidentMax = activeMax + 1`,
+nonempty agents when active and execution-enabled, increasing administrative
+start/end times and rejection of recognized credential material. Store service
+credentials in private environment bindings, never this file or the repository.

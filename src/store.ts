@@ -1,566 +1,223 @@
-import { randomUUID } from "node:crypto";
-import { z } from "zod";
-import { DatabaseSync, backup } from "node:sqlite";
-import type { SQLInputValue } from "node:sqlite";
-import { mkdirSync, chmodSync } from "node:fs";
-import { dirname } from "node:path";
 import {
-  configuration,
+  createHmac,
+  randomBytes,
+  randomUUID,
+  timingSafeEqual,
+} from "node:crypto";
+import { z } from "zod";
+import { ConfigStore } from "./config-store.ts";
+import {
+  DomainError,
   digest,
   fail,
   appendEventSchema,
   listEventsSchema,
+  eventSchema,
 } from "./model.ts";
-import type { CoordinationEvent, Agent } from "./model.ts";
-const agentsDefinition = `(revision INTEGER NOT NULL REFERENCES policy(revision),id TEXT NOT NULL,position INTEGER NOT NULL CHECK(position>=0),name TEXT NOT NULL,description TEXT NOT NULL,instructions TEXT,model TEXT NOT NULL,effort TEXT NOT NULL CHECK(effort IN('low','medium','high','xhigh','max','ultra')),environment TEXT,PRIMARY KEY(revision,id),UNIQUE(revision,position)) STRICT`;
-type Row = Record<string, string | number | null>;
-export class Store {
-  private db: DatabaseSync;
-  constructor(path: string) {
-    if (path !== ":memory:")
-      mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
-    this.db = new DatabaseSync(path);
-    try {
-      this.db.exec(
-        "PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;",
-      );
-      this.transaction(() => {
-        const version = Number(
-          this.db.prepare("PRAGMA user_version").get()!.user_version,
-        );
-        const hasTables = !!this.db
-          .prepare(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' LIMIT 1",
-          )
-          .get();
-        if ((hasTables && version !== 3 && version !== 4) || (!hasTables && version !== 0)) {
-          fail("CLEAN_DATABASE_REQUIRED");
-        }
-
-        // Schema 3 -> 4 changes only instructions nullability. Copy every value
-        // unchanged; no configuration revision, digest, event or identity is reset.
-        if (version === 3) {
-          this.db.exec(`CREATE TABLE agents_next${agentsDefinition};
-            INSERT INTO agents_next SELECT * FROM agents;
-            DROP TABLE agents;
-            ALTER TABLE agents_next RENAME TO agents;`);
-        }
-
-        this.db.exec(`CREATE TABLE IF NOT EXISTS policy(
-        revision INTEGER PRIMARY KEY CHECK(revision>0), digest TEXT NOT NULL,
-        profile_id TEXT NOT NULL, effective_at TEXT NOT NULL, active INTEGER NOT NULL CHECK(active IN(0,1)),
-        fixture_only INTEGER NOT NULL CHECK(fixture_only IN(0,1)), execution_enabled INTEGER NOT NULL CHECK(execution_enabled IN(0,1)),
-        owner_ref TEXT NOT NULL, timezone TEXT NOT NULL,
-        preferred_min INTEGER NOT NULL CHECK(preferred_min>0),preferred_max INTEGER NOT NULL CHECK(preferred_max>=preferred_min),
-        active_max INTEGER NOT NULL CHECK(active_max>=preferred_max),urgent_max INTEGER NOT NULL CHECK(urgent_max=active_max+1),
-        administrative_start TEXT NOT NULL,administrative_end TEXT NOT NULL CHECK(administrative_end>administrative_start),
-        low_activity INTEGER NOT NULL CHECK(low_activity IN(0,1))
-      ) STRICT;
-      CREATE TABLE IF NOT EXISTS bindings(revision INTEGER PRIMARY KEY REFERENCES policy(revision),linear_workspace TEXT NOT NULL,linear_team TEXT NOT NULL,erp_connection TEXT NOT NULL) STRICT;
-      CREATE TABLE IF NOT EXISTS repositories(revision INTEGER NOT NULL REFERENCES policy(revision),position INTEGER NOT NULL CHECK(position>=0),repository TEXT NOT NULL,PRIMARY KEY(revision,position),UNIQUE(revision,repository)) STRICT;
-      CREATE TABLE IF NOT EXISTS agents${agentsDefinition};
-      CREATE TABLE IF NOT EXISTS coordination_events(
-        seq INTEGER PRIMARY KEY CHECK(seq>0),event_id TEXT NOT NULL UNIQUE,
-        action TEXT NOT NULL CHECK(action IN('planning','selection','delegation','execution','release-plan','publication','handoff','validation','incident','administration','configuration','correction')),
-        scope_type TEXT NOT NULL CHECK(scope_type IN('issue','project','configuration','incident')),scope_id TEXT NOT NULL,
-        issue_id TEXT,phase TEXT CHECK(phase IN('implementation','release','validation')),
-        reason TEXT NOT NULL CHECK(length(reason) BETWEEN 1 AND 1000),result TEXT NOT NULL CHECK(length(result) BETWEEN 1 AND 2000),
-        outcome TEXT NOT NULL CHECK(outcome IN('planned','confirmed','failed','uncertain','blocked','deferred')),
-        observed_at TEXT NOT NULL,recorded_at TEXT NOT NULL,producer_id TEXT NOT NULL,
-        configuration_revision INTEGER NOT NULL REFERENCES policy(revision),
-        thread_id TEXT,turn_id TEXT CHECK(turn_id IS NULL OR thread_id IS NOT NULL),correlation_id TEXT,
-        corrects_event_id TEXT REFERENCES coordination_events(event_id),evidence_count INTEGER NOT NULL CHECK(evidence_count BETWEEN 0 AND 30),
-        CHECK(scope_type!='issue' OR (issue_id IS NOT NULL AND issue_id=scope_id)),
-        CHECK((action='correction' AND corrects_event_id IS NOT NULL) OR (action!='correction' AND corrects_event_id IS NULL)),
-        CHECK(outcome NOT IN('confirmed','failed') OR evidence_count>0)
-      ) STRICT;
-      CREATE INDEX IF NOT EXISTS events_issue ON coordination_events(issue_id,seq);
-      CREATE INDEX IF NOT EXISTS events_scope ON coordination_events(scope_type,scope_id,seq);
-      CREATE INDEX IF NOT EXISTS events_action ON coordination_events(action,seq);
-      CREATE INDEX IF NOT EXISTS events_time ON coordination_events(observed_at,seq);
-      CREATE TABLE IF NOT EXISTS event_evidence(event_id TEXT NOT NULL REFERENCES coordination_events(event_id),position INTEGER NOT NULL CHECK(position>=0),reference TEXT NOT NULL CHECK(length(reference) BETWEEN 1 AND 500),PRIMARY KEY(event_id,position),UNIQUE(event_id,reference)) STRICT;
-      CREATE TRIGGER IF NOT EXISTS evidence_bound BEFORE INSERT ON event_evidence WHEN NEW.position >= (SELECT evidence_count FROM coordination_events WHERE event_id=NEW.event_id) BEGIN SELECT RAISE(ABORT,'EVIDENCE_LIMIT'); END;
-      CREATE TRIGGER IF NOT EXISTS correction_scope BEFORE INSERT ON coordination_events WHEN NEW.corrects_event_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM coordination_events WHERE event_id=NEW.corrects_event_id AND scope_type=NEW.scope_type AND scope_id=NEW.scope_id AND issue_id IS NEW.issue_id) BEGIN SELECT RAISE(ABORT,'CORRECTION_SCOPE_MISMATCH'); END;
-      CREATE TABLE IF NOT EXISTS requests(actor TEXT NOT NULL,id TEXT NOT NULL,digest TEXT NOT NULL,operation TEXT NOT NULL CHECK(operation IN('configuration','event')),result_revision INTEGER NOT NULL REFERENCES policy(revision),event_id TEXT REFERENCES coordination_events(event_id),PRIMARY KEY(actor,id),CHECK((operation='event')=(event_id IS NOT NULL))) STRICT;
-      CREATE TABLE IF NOT EXISTS store_identity(id INTEGER PRIMARY KEY CHECK(id=1),value TEXT NOT NULL) STRICT;
-      CREATE TABLE IF NOT EXISTS audit(seq INTEGER PRIMARY KEY,actor TEXT NOT NULL,operation TEXT NOT NULL,revision INTEGER NOT NULL,at TEXT NOT NULL) STRICT;`);
-        this.db
-          .prepare("INSERT OR IGNORE INTO store_identity VALUES(1,?)")
-          .run(randomUUID());
-        // No API or ordinary SQL update/delete can rewrite accepted evidence or policy.
-        for (const table of [
-          "policy",
-          "bindings",
-          "repositories",
-          "agents",
-          "coordination_events",
-          "event_evidence",
-          "requests",
-          "audit",
-          "store_identity",
-        ]) {
-          for (const operation of ["UPDATE", "DELETE"])
-            this.db.exec(
-              `CREATE TRIGGER IF NOT EXISTS immutable_${table}_${operation} BEFORE ${operation} ON ${table} BEGIN SELECT RAISE(ABORT,'IMMUTABLE_RECORD'); END;`,
-            );
-        }
-        this.db.exec("PRAGMA user_version=4");
-      });
-      if (path !== ":memory:") chmodSync(path, 0o600);
-    } catch (error) {
-      this.db.close();
-      throw error;
-    }
+import type { CoordinationEvent, ListEventsInput } from "./model.ts";
+import type { EventDatabase } from "./clickhouse.ts";
+export class EventWriteUncertain extends DomainError {
+  readonly attemptedEventId: string;
+  constructor(attemptedEventId: string) {
+    super("EVENT_WRITE_UNCERTAIN");
+    this.attemptedEventId = attemptedEventId;
   }
-  close() {
-    this.db.close();
+}
+const key = z.tuple([z.iso.datetime(), z.uuid()]);
+const cursorSchema = z
+  .object({ filters: z.string(), after: key, through: key })
+  .strict();
+const columns = `event_id, action, scope_type, scope_id, issue_id, issue_identifier, phase, reason, result, outcome,
+ observed_at, recorded_at, producer_id, evidence_refs, thread_id, turn_id, correlation_id, corrects_event_id`;
+function row(e: CoordinationEvent): Record<string, unknown> {
+  return {
+    event_id: e.eventId,
+    action: e.action,
+    scope_type: e.scope.type,
+    scope_id: e.scope.id,
+    issue_id: e.issueId ?? null,
+    issue_identifier: e.issueIdentifier ?? null,
+    phase: e.phase ?? null,
+    reason: e.reason,
+    result: e.result,
+    outcome: e.outcome,
+    observed_at: e.observedAt,
+    recorded_at: e.recordedAt,
+    producer_id: e.producerId,
+    evidence_refs: e.evidenceRefs,
+    thread_id: e.threadId ?? null,
+    turn_id: e.turnId ?? null,
+    correlation_id: e.correlationId ?? null,
+    corrects_event_id: e.correctsEventId ?? null,
+  };
+}
+function event(r: Record<string, unknown>): CoordinationEvent {
+  const optional = (name: string, field: string) =>
+    r[field] == null ? {} : { [name]: r[field] };
+  const e = eventSchema.parse({
+    action: r.action,
+    scope: { type: r.scope_type, id: r.scope_id },
+    ...optional("issueId", "issue_id"),
+    ...optional("issueIdentifier", "issue_identifier"),
+    ...optional("phase", "phase"),
+    reason: r.reason,
+    result: r.result,
+    outcome: r.outcome,
+    observedAt: r.observed_at,
+    evidenceRefs: r.evidence_refs,
+    ...optional("threadId", "thread_id"),
+    ...optional("turnId", "turn_id"),
+    ...optional("correlationId", "correlation_id"),
+    ...optional("correctsEventId", "corrects_event_id"),
+  });
+  return {
+    ...e,
+    eventId: z.uuid().parse(r.event_id),
+    recordedAt: z.iso.datetime().parse(r.recorded_at),
+    producerId: z.string().min(1).parse(r.producer_id),
+  };
+}
+export class Store extends ConfigStore {
+  private cursorKey = randomBytes(32);
+  private database: EventDatabase;
+  constructor(path: string, database: EventDatabase) {
+    super(path);
+    this.database = database;
   }
-  ready() {
-    this.db.prepare("SELECT 1").get();
-  }
-  private current() {
-    return Number(
-      this.db
-        .prepare("SELECT COALESCE(MAX(revision),0) AS revision FROM policy")
-        .get()!.revision,
+  close() {}
+  async ready() {
+    this.adminRead();
+    await this.database.query(
+      "SELECT event_id FROM coordination_events LIMIT 0",
     );
   }
-  private insert(table: string, values: SQLInputValue[]) {
-    this.db
-      .prepare(
-        `INSERT INTO ${table} VALUES(${values.map(() => "?").join(",")})`,
-      )
-      .run(...values);
-  }
-  private transaction<T>(run: () => T): T {
-    this.db.exec("BEGIN IMMEDIATE");
-    try {
-      const result = run();
-      this.db.exec("COMMIT");
-      return result;
-    } catch (e) {
-      this.db.exec("ROLLBACK");
-      throw e;
-    }
-  }
-  private policy(revision: number) {
-    const p = this.db
-      .prepare("SELECT * FROM policy WHERE revision=?")
-      .get(revision) as Row | undefined;
-    if (!p) fail("SETUP_REQUIRED");
-    const b = this.db
-      .prepare("SELECT * FROM bindings WHERE revision=?")
-      .get(revision) as Row | undefined;
-    if (!b) fail("INCOMPLETE_CONFIGURATION");
-    const c = configuration({
-      schemaVersion: 2,
-      profileId: p.profile_id,
-      effectiveAt: p.effective_at,
-      active: !!p.active,
-      fixtureOnly: !!p.fixture_only,
-      executionEnabled: !!p.execution_enabled,
-      ownerRef: p.owner_ref,
-      timezone: p.timezone,
-      bindings: {
-        linear: { workspaceRef: b.linear_workspace, teamRef: b.linear_team },
-        github: {
-          repositories: this.db
-            .prepare(
-              "SELECT repository FROM repositories WHERE revision=? ORDER BY position",
-            )
-            .all(revision)
-            .map((r) => r.repository),
-        },
-        erpnext: { connectionRef: b.erp_connection },
-      },
-      capacity: {
-        preferredMin: p.preferred_min,
-        preferredMax: p.preferred_max,
-        activeMax: p.active_max,
-        urgentIncidentMax: p.urgent_max,
-      },
-      selection: {
-        administrativeHours: {
-          start: p.administrative_start,
-          end: p.administrative_end,
-        },
-        lowActivityPreference: !!p.low_activity,
-      },
-      agents: this.db
-        .prepare("SELECT * FROM agents WHERE revision=? ORDER BY position")
-        .all(revision)
-        .map((a) => this.agent(a as Row)),
-    });
-    if (digest(c) !== p.digest) fail("INTEGRITY_FAILURE");
-    return { c, digest: String(p.digest) };
-  }
-  private agent(a: Row): Agent {
-    return {
-      id: String(a.id),
-      name: String(a.name),
-      description: String(a.description),
-      ...(a.instructions === null ? {} : { instructions: String(a.instructions) }),
-      model: String(a.model),
-      effort: String(a.effort),
-      ...(a.environment === null ? {} : { environment: String(a.environment) }),
-    };
-  }
-  private replay(row: Row) {
-    const p = this.policy(Number(row.result_revision));
-    return { revision: Number(row.result_revision), digest: p.digest };
-  }
-  private mutate<T extends { revision: number }>(
-    actor: string,
-    requestId: string,
-    input: unknown,
-    operation: "configuration",
-    run: () => T,
-  ) {
-    return this.transaction(() => {
-      const hash = digest(input),
-        prior = this.db
-          .prepare("SELECT * FROM requests WHERE actor=? AND id=?")
-          .get(actor, requestId) as Row | undefined;
-      if (prior) {
-        if (prior.digest !== hash) fail("IDEMPOTENCY_CONFLICT");
-        return this.replay(prior) as unknown as T;
-      }
-      const result = run();
-      const revision = result.revision;
-      this.insert("requests", [
-        actor,
-        requestId,
-        hash,
-        operation,
-        revision,
-        null,
-      ]);
-      this.db
-        .prepare(
-          "INSERT INTO audit(actor,operation,revision,at) VALUES(?,?,?,?)",
-        )
-        .run(actor, operation, revision, new Date().toISOString());
-      return result;
-    });
-  }
-  adminRead() {
-    const revision = this.current(),
-      p = revision ? this.policy(revision) : null;
-    return {
-      schemaVersion: 2,
-      revision,
-      setupRequired: !revision,
-      configuration: p?.c ?? null,
-      digest: p?.digest ?? null,
-    };
-  }
-  read(
-    subject: "context" | "agents" | "selection",
-    expectedRevision?: number,
-  ) {
-    const revision = this.current();
-    if (!revision) fail("SETUP_REQUIRED");
-    if (expectedRevision !== undefined && expectedRevision !== revision)
-      fail("REVISION_CONFLICT");
-    // Revisions and their children are immutable: concurrent publication cannot mix reads.
-    const { c, digest: hash } = this.policy(revision);
-    const data =
-      subject === "context"
-        ? {
-            profileId: c.profileId,
-            ownerRef: c.ownerRef,
-            timezone: c.timezone,
-            bindings: c.bindings,
-          }
-        : subject === "agents"
-          ? { agents: c.agents }
-          : {
-              capacity: c.capacity,
-              selection: c.selection,
-              timezone: c.timezone,
-            };
-    return {
-      schemaVersion: 2,
-      revision,
-      digest: hash,
-      complete: true,
-      readAt: new Date().toISOString(),
-      effectiveAt: c.effectiveAt,
-      active: c.active,
-      fixtureOnly: c.fixtureOnly,
-      executionEnabled: c.executionEnabled,
-      subject,
-      data,
-    };
-  }
-  update(
-    actor: string,
-    requestId: string,
-    expectedRevision: number,
-    reviewDigest: string,
-    input: unknown,
-  ) {
-    const c = configuration(input);
-    if (digest(c) !== reviewDigest) fail("REVIEW_DIGEST_MISMATCH");
-    return this.mutate(
-      actor,
-      requestId,
-      { operation: "configuration", expectedRevision, reviewDigest, c },
-      "configuration",
-      () => {
-        const current = this.current();
-        if (current !== expectedRevision) fail("REVISION_CONFLICT");
-        if (current && this.policy(current).c.profileId !== c.profileId)
-          fail("IDENTITY_MISMATCH");
-        const r = current + 1;
-        this.insert("policy", [
-          r,
-          reviewDigest,
-          c.profileId,
-          c.effectiveAt,
-          +c.active,
-          +c.fixtureOnly,
-          +c.executionEnabled,
-          c.ownerRef,
-          c.timezone,
-          c.capacity.preferredMin,
-          c.capacity.preferredMax,
-          c.capacity.activeMax,
-          c.capacity.urgentIncidentMax,
-          c.selection.administrativeHours.start,
-          c.selection.administrativeHours.end,
-          +c.selection.lowActivityPreference,
-        ]);
-        this.insert("bindings", [
-          r,
-          c.bindings.linear.workspaceRef,
-          c.bindings.linear.teamRef,
-          c.bindings.erpnext.connectionRef,
-        ]);
-        c.bindings.github.repositories.forEach((repository, i) =>
-          this.insert("repositories", [r, i, repository]),
-        );
-        c.agents.forEach((a, i) =>
-          this.insert("agents", [
-            r,
-            a.id,
-            i,
-            a.name,
-            a.description,
-            a.instructions ?? null,
-            a.model,
-            a.effort,
-            a.environment ?? null,
-          ]),
-        );
-        return { revision: r, digest: reviewDigest };
-      },
-    );
-  }
-  private event(eventId: string): CoordinationEvent {
-    const row = this.db
-      .prepare("SELECT * FROM coordination_events WHERE event_id=?")
-      .get(eventId) as Row | undefined;
-    if (!row) fail("EVENT_NOT_FOUND");
-    const optional = (key: string, column: string) =>
-      row[column] === null ? {} : { [key]: String(row[column]) };
-    const evidenceRefs = this.db
-      .prepare(
-        "SELECT reference FROM event_evidence WHERE event_id=? ORDER BY position",
-      )
-      .all(eventId)
-      .map((r) => String(r.reference));
-    if (evidenceRefs.length !== row.evidence_count) fail("INTEGRITY_FAILURE");
-    return {
-      eventId,
-      action: row.action as CoordinationEvent["action"],
-      scope: {
-        type: row.scope_type as CoordinationEvent["scope"]["type"],
-        id: String(row.scope_id),
-      },
-      ...optional("issueId", "issue_id"),
-      ...optional("phase", "phase"),
-      reason: String(row.reason),
-      result: String(row.result),
-      outcome: row.outcome as CoordinationEvent["outcome"],
-      observedAt: String(row.observed_at),
-      recordedAt: String(row.recorded_at),
-      producerId: String(row.producer_id),
-      configurationRevision: Number(row.configuration_revision),
-      configurationDigest: this.policy(Number(row.configuration_revision))
-        .digest,
-      ...optional("threadId", "thread_id"),
-      ...optional("turnId", "turn_id"),
-      ...optional("correlationId", "correlation_id"),
-      ...optional("correctsEventId", "corrects_event_id"),
-      evidenceRefs,
-    };
-  }
-  appendEvent(actor: string, input: unknown): { event: CoordinationEvent } {
+  async appendEvent(actor: string, input: unknown) {
     const a = appendEventSchema.parse(input);
-    return this.transaction(() => {
-      const hash = digest({ operation: "event", ...a });
-      const prior = this.db
-        .prepare("SELECT * FROM requests WHERE actor=? AND id=?")
-        .get(actor, a.requestId) as Row | undefined;
-      if (prior) {
-        if (prior.operation !== "event" || prior.digest !== hash)
-          fail("IDEMPOTENCY_CONFLICT");
-        return { event: this.event(String(prior.event_id)) };
-      }
-      const revision = this.current();
-      if (!revision || revision !== a.expectedRevision)
-        fail("REVISION_CONFLICT");
-      this.policy(revision);
-      const e = a.event;
-      if (Date.parse(e.observedAt) > Date.now()) fail("FUTURE_OBSERVATION");
-      if (e.correctsEventId) {
-        const original = this.event(e.correctsEventId);
-        if (
-          original.scope.type !== e.scope.type ||
-          original.scope.id !== e.scope.id ||
-          original.issueId !== e.issueId
-        )
-          fail("CORRECTION_SCOPE_MISMATCH");
-      }
-      const eventId = randomUUID(),
-        recordedAt = new Date().toISOString();
-      this.insert("coordination_events", [
-        null,
-        eventId,
-        e.action,
-        e.scope.type,
-        e.scope.id,
-        e.issueId ?? null,
-        e.phase ?? null,
-        e.reason,
-        e.result,
-        e.outcome,
-        e.observedAt,
-        recordedAt,
-        actor,
-        revision,
-        e.threadId ?? null,
-        e.turnId ?? null,
-        e.correlationId ?? null,
-        e.correctsEventId ?? null,
-        e.evidenceRefs.length,
-      ]);
-      e.evidenceRefs.forEach((ref, i) =>
-        this.insert("event_evidence", [eventId, i, ref]),
-      );
-      this.insert("requests", [
-        actor,
-        a.requestId,
-        hash,
-        "event",
-        revision,
-        eventId,
-      ]);
-      this.db
-        .prepare(
-          "INSERT INTO audit(actor,operation,revision,at) VALUES(?,?,?,?)",
-        )
-        .run(actor, "event", revision, recordedAt);
-      return { event: this.event(eventId) };
-    });
+    this.read("context", a.expectedDigest);
+    if (Date.parse(a.event.observedAt) > Date.now()) fail("FUTURE_OBSERVATION");
+    if (a.event.correctsEventId) {
+      const target = await this.listEvents({
+        eventId: a.event.correctsEventId,
+        limit: 2,
+      });
+      if (target.events.length !== 1) fail("EVENT_NOT_FOUND");
+      const prior = target.events[0];
+      if (
+        prior.scope.type !== a.event.scope.type ||
+        prior.scope.id !== a.event.scope.id ||
+        prior.issueId !== a.event.issueId
+      )
+        fail("CORRECTION_SCOPE_MISMATCH");
+    }
+    // Recheck after the asynchronous correction lookup; no cross-store transaction is claimed.
+    this.read("context", a.expectedDigest);
+    const saved: CoordinationEvent = {
+      ...a.event,
+      eventId: randomUUID(),
+      recordedAt: new Date().toISOString(),
+      producerId: actor,
+    };
+    try {
+      await this.database.insert(row(saved));
+    } catch {
+      throw new EventWriteUncertain(saved.eventId);
+    }
+    return { event: saved };
   }
-  listEvents(input: unknown = {}): {
-    events: CoordinationEvent[];
-    hasMore: boolean;
-    nextCursor: string | null;
-  } {
-    const a = listEventsSchema.parse(input);
-    const { cursor, limit, ...filters } = a;
-    const storeId = String(
-      this.db.prepare("SELECT value FROM store_identity WHERE id=1").get()!
-        .value,
-    );
-    const filterDigest = digest({ storeId, filters });
-    const max = Number(
-      this.db
-        .prepare("SELECT COALESCE(MAX(seq),0) AS n FROM coordination_events")
-        .get()!.n,
-    );
-    let after = 0,
-      through = max;
+  async listEvents(input: ListEventsInput = {}) {
+    const parsed = listEventsSchema.parse(input);
+    if (parsed.scopeType === "issue" && parsed.scopeId)
+      parsed.scopeId = parsed.scopeId.toLowerCase();
+    const { cursor, ...filters } = parsed;
+    const order = parsed.order ?? "asc",
+      filterDigest = digest({ ...filters, order });
+    const terms: string[] = [],
+      parameters: Record<string, string> = {};
+    for (const [field, column, type] of [
+      ["eventId", "event_id", "UUID"],
+      ["issueId", "issue_id", "UUID"],
+      ["scopeType", "scope_type", "String"],
+      ["scopeId", "scope_id", "String"],
+      ["action", "action", "String"],
+    ] as const) {
+      if (parsed[field] !== undefined) {
+        terms.push(`${column} = {${field}:${type}}`);
+        parameters[field] = parsed[field]!;
+      }
+    }
+    for (const field of ["from", "to"] as const)
+      if (parsed[field]) {
+        terms.push(
+          `observed_at ${field === "from" ? ">=" : "<="} parseDateTime64BestEffort({${field}:String}, 3, 'UTC')`,
+        );
+        parameters[field] = parsed[field]!;
+      }
+    let through: [string, string], after: [string, string] | undefined;
     if (cursor) {
       try {
-        const parsed = z
-          .object({
-            v: z.literal(1),
-            after: z.number().int().nonnegative(),
-            through: z.number().int().nonnegative(),
-            filterDigest: z.string(),
-          })
-          .strict()
-          .parse(JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")));
+        const [body, signature, extra] = cursor.split(".");
+        if (extra || !body || !signature) throw Error();
+        const expected = createHmac("sha256", this.cursorKey)
+            .update(body)
+            .digest(),
+          actual = Buffer.from(signature, "base64url");
         if (
-          parsed.filterDigest !== filterDigest ||
-          parsed.after > parsed.through ||
-          parsed.through > max
+          actual.length !== expected.length ||
+          !timingSafeEqual(actual, expected)
         )
-          fail("INVALID_CURSOR");
-        after = parsed.after;
-        through = parsed.through;
+          throw Error();
+        const decoded = cursorSchema.parse(
+          JSON.parse(Buffer.from(body, "base64url").toString("utf8")),
+        );
+        if (decoded.filters !== filterDigest) throw Error();
+        through = decoded.through;
+        after = decoded.after;
       } catch {
         fail("INVALID_CURSOR");
       }
+    } else {
+      const maximum = await this.database.query(
+        `SELECT recorded_at, event_id FROM coordination_events ${terms.length ? "WHERE " + terms.join(" AND ") : ""} ORDER BY recorded_at DESC, event_id DESC LIMIT 1`,
+        parameters,
+      );
+      if (!maximum.length)
+        return { events: [], hasMore: false, nextCursor: null };
+      through = key.parse([maximum[0].recorded_at, maximum[0].event_id]);
     }
-    const descending = filters.order === "desc";
-    const clauses = ["seq<=?"],
-      values: SQLInputValue[] = [through];
-    if (cursor || !descending) {
-      clauses.push(descending ? "seq<?" : "seq>?");
-      values.push(after);
+    parameters.throughTime = through[0];
+    parameters.throughId = through[1];
+    terms.push(
+      "(recorded_at, event_id) <= (parseDateTime64BestEffort({throughTime:String}, 3, 'UTC'), {throughId:UUID})",
+    );
+    if (after) {
+      parameters.afterTime = after[0];
+      parameters.afterId = after[1];
+      terms.push(
+        `(recorded_at, event_id) ${order === "asc" ? ">" : "<"} (parseDateTime64BestEffort({afterTime:String}, 3, 'UTC'), {afterId:UUID})`,
+      );
     }
-    for (const [key, column, op] of [
-      ["issueId", "issue_id", "="],
-      ["scopeType", "scope_type", "="],
-      ["scopeId", "scope_id", "="],
-      ["action", "action", "="],
-      ["from", "observed_at", ">="],
-      ["to", "observed_at", "<="],
-    ] as const)
-      if (filters[key] !== undefined) {
-        clauses.push(`${column}${op}?`);
-        values.push(filters[key]);
-      }
-    const rows = this.db
-      .prepare(
-        `SELECT seq,event_id FROM coordination_events WHERE ${clauses.join(" AND ")} ORDER BY seq ${descending ? "DESC" : "ASC"} LIMIT ?`,
-      )
-      .all(...values, limit + 1);
-    const hasMore = rows.length > limit,
-      page = rows.slice(0, limit);
-    return {
-      events: page.map((r) => this.event(String(r.event_id))),
-      hasMore,
-      nextCursor: hasMore
-        ? Buffer.from(
-            JSON.stringify({
-              v: 1,
-              after: Number(page.at(-1)!.seq),
-              through,
-              filterDigest,
-            }),
-          ).toString("base64url")
-        : null,
-    };
-  }
-  async backup(path: string) {
-    await backup(this.db, path);
-    chmodSync(path, 0o600);
-    const copy = new DatabaseSync(path, { readOnly: true });
-    try {
-      if (
-        copy.prepare("PRAGMA integrity_check").get()?.integrity_check !==
-          "ok" ||
-        copy.prepare("PRAGMA foreign_key_check").all().length
-      )
-        fail("BACKUP_INVALID");
-    } finally {
-      copy.close();
+    const rows = await this.database.query(
+      `SELECT ${columns} FROM coordination_events WHERE ${terms.join(" AND ")} ORDER BY recorded_at ${order.toUpperCase()}, event_id ${order.toUpperCase()} LIMIT ${parsed.limit + 1}`,
+      parameters,
+    );
+    if (rows.length > parsed.limit + 1) fail("INVALID_HISTORY_RESPONSE");
+    const events = rows.slice(0, parsed.limit).map(event),
+      hasMore = rows.length > parsed.limit;
+    let nextCursor: string | null = null;
+    if (hasMore) {
+      const last = events[events.length - 1];
+      const body = Buffer.from(
+        JSON.stringify({
+          filters: filterDigest,
+          after: [last.recordedAt, last.eventId],
+          through,
+        }),
+      ).toString("base64url");
+      nextCursor =
+        body +
+        "." +
+        createHmac("sha256", this.cursorKey).update(body).digest("base64url");
     }
+    return { events, hasMore, nextCursor };
   }
 }

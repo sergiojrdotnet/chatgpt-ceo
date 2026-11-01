@@ -1,11 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { createServer } from "node:http";
+import { ClickHouse, type EventDatabase } from "../src/clickhouse.ts";
 import { generateKeyPair, exportJWK, createLocalJWKSet, SignJWT } from "jose";
 import {
   Client,
   StreamableHTTPClientTransport,
 } from "@modelcontextprotocol/client";
 import { app } from "../src/app.ts";
+import { fixture as storageFixture, issue } from "./helpers/fixture.ts";
 import { authentication } from "../src/auth.ts";
 import example from "../examples/inactive-a.json" with { type: "json" };
 import { digest } from "../src/model.ts";
@@ -16,7 +19,7 @@ const config = {
   admins: ["admin@example.test"],
   eventWriters: ["writer@example.test"],
 };
-async function fixture() {
+async function fixture(eventDatabase?: EventDatabase) {
   const key = await generateKeyPair("RS256");
   const jwk = await exportJWK(key.publicKey);
   jwk.kid = "synthetic";
@@ -34,10 +37,12 @@ async function fixture() {
       .setIssuedAt()
       .setExpirationTime(expiry)
       .sign(key.privateKey);
+  const storage = storageFixture();
   const r = app(
     {
       ...config,
-      databasePath: ":memory:",
+      configPath: storage.store.path,
+      eventDatabase: eventDatabase ?? storage.database,
       publicOrigin: "https://ceo.example.test",
     },
     keys,
@@ -62,7 +67,12 @@ async function fixture() {
     );
     return c;
   }
-  return { r, url, client, token, keys };
+  const close = r.close;
+  r.close = async () => {
+    await close();
+    storage.cleanup();
+  };
+  return { r, url, client, token, keys, storage };
 }
 function data(result: Awaited<ReturnType<Client["callTool"]>>) {
   assert.notEqual(result.isError, true, JSON.stringify(result));
@@ -80,7 +90,7 @@ test("fresh SDK consumers setup, discover nine tools, read subjects consistently
     const tools = (await reader.listTools()).tools;
     const show = tools.find((t) => t.name === "show_coordination_history")!;
     assert.deepEqual(show._meta?.ui, {
-      resourceUri: "ui://ceo/coordination-history/v1.html",
+      resourceUri: "ui://ceo/coordination-history/v2.html",
     });
     assert.equal(
       tools.find((t) => t.name === "list_coordination_events")?._meta,
@@ -90,7 +100,7 @@ test("fresh SDK consumers setup, discover nine tools, read subjects consistently
     const resources = await reader.listResources();
     assert.equal(resources.resources.length, 1);
     const resource = await reader.readResource({
-      uri: "ui://ceo/coordination-history/v1.html",
+      uri: "ui://ceo/coordination-history/v2.html",
     });
     assert.equal(resource.contents[0].mimeType, "text/html;profile=mcp-app");
     assert.ok(
@@ -103,13 +113,13 @@ test("fresh SDK consumers setup, discover nine tools, read subjects consistently
     });
     const shown = await reader.callTool({
       name: "show_coordination_history",
-      arguments: { issueId: "SYN-1" },
+      arguments: { issueId: issue },
     });
     assert.equal(shown.isError, undefined);
     assert.deepEqual(shown._meta, {
-      historyFilters: { issueId: "SYN-1", order: "desc" },
+      historyFilters: { issueId: issue, order: "desc" },
     });
-    assert.equal(JSON.stringify(shown.content).includes("SYN-1"), false);
+    assert.equal(JSON.stringify(shown.content).includes(issue), false);
     assert.equal(
       (
         await reader.callTool({
@@ -148,9 +158,8 @@ test("fresh SDK consumers setup, discover nine tools, read subjects consistently
     assert.equal(valid.reviewDigest, digest(example));
     const args = {
       configuration: example,
-      expectedRevision: 0,
+      expectedDigest: null,
       reviewDigest: valid.reviewDigest,
-      requestId: "setup",
     };
     assert.equal(
       (await writer.callTool({ name: "update_configuration", arguments: args }))
@@ -160,32 +169,28 @@ test("fresh SDK consumers setup, discover nine tools, read subjects consistently
     assert.equal(
       data(
         await admin.callTool({ name: "update_configuration", arguments: args }),
-      ).revision,
-      1,
+      ).digest,
+      digest(example),
     );
     const context = data(
       await reader.callTool({ name: "get_operation_context", arguments: {} }),
     );
     assert.equal(context.complete, true);
     assert.equal(context.fixtureOnly, true);
-    for (const name of [
-      "get_agents",
-      "get_selection_policy",
-    ]) {
+    for (const name of ["get_agents", "get_selection_policy"]) {
       const result = data(
         await reader.callTool({
           name,
-          arguments: { expectedRevision: context.revision },
+          arguments: { expectedDigest: context.digest },
         }),
       );
       assert.equal(result.digest, context.digest);
-      assert.equal(result.revision, context.revision);
     }
     assert.equal(
       (
         await reader.callTool({
           name: "get_agents",
-          arguments: { expectedRevision: 2 },
+          arguments: { expectedDigest: "a".repeat(64) },
         })
       ).isError,
       true,
@@ -197,13 +202,13 @@ test("fresh SDK consumers setup, discover nine tools, read subjects consistently
     );
     assert.equal(
       data(await admin.callTool({ name: "get_configuration", arguments: {} }))
-        .revision,
-      1,
+        .digest,
+      digest(example),
     );
     const event = {
       action: "delegation",
-      scope: { type: "issue", id: "SYN-1" },
-      issueId: "SYN-1",
+      scope: { type: "issue", id: issue },
+      issueId: issue,
       phase: "implementation",
       reason: "Approved ready work",
       result: "Dispatch response unavailable",
@@ -213,7 +218,7 @@ test("fresh SDK consumers setup, discover nine tools, read subjects consistently
       threadId: "synthetic-thread",
       turnId: "synthetic-turn",
     };
-    const argsEvent = { expectedRevision: 1, event, requestId: "event" };
+    const argsEvent = { expectedDigest: digest(example), event };
     for (const denied of [admin, reader])
       assert.equal(
         (
@@ -232,19 +237,19 @@ test("fresh SDK consumers setup, discover nine tools, read subjects consistently
     );
     assert.equal(saved.event.outcome, "uncertain");
     assert.equal(saved.event.producerId.length, 64);
-    assert.deepEqual(
+    assert.notEqual(
       data(
         await writer.callTool({
           name: "append_coordination_event",
           arguments: argsEvent,
         }),
-      ),
-      saved,
+      ).event.eventId,
+      saved.event.eventId,
     );
     const listed = data(
       await reader.callTool({
         name: "list_coordination_events",
-        arguments: { issueId: "SYN-1", limit: 1 },
+        arguments: { eventId: saved.event.eventId, limit: 1 },
       }),
     );
     assert.deepEqual(listed.events, [saved.event]);
@@ -278,7 +283,7 @@ test("fresh SDK consumers setup, discover nine tools, read subjects consistently
       (
         await writer.callTool({
           name: "append_coordination_event",
-          arguments: { ...argsEvent, requestId: "stale", expectedRevision: 2 },
+          arguments: { ...argsEvent, expectedDigest: "a".repeat(64) },
         })
       ).isError,
       true,
@@ -330,7 +335,7 @@ test("JWT signature, issuer, audience, expiry, identity and Origin deny access w
             method,
             params:
               method === "resources/read"
-                ? { uri: "ui://ceo/coordination-history/v1.html" }
+                ? { uri: "ui://ceo/coordination-history/v2.html" }
                 : { name: "show_coordination_history", arguments: {} },
           }),
         });
@@ -445,21 +450,179 @@ test("SDK v2 negotiates dated protocol versions and serves current stateless dis
 
 test("SDK validates and saves five agents without extra instructions, preserving absence", async () => {
   const f = await fixture();
-  const admin = await f.client("admin@example.test"), reader = await f.client("reader@example.test");
+  const admin = await f.client("admin@example.test"),
+    reader = await f.client("reader@example.test");
   try {
     const agents = Array.from({ length: 5 }, (_, i) => {
       const { instructions, ...rest } = example.agents[0];
       return { ...rest, id: `agent-${i}` };
     });
     const proposal = { ...example, agents };
-    const validated = data(await admin.callTool({ name: "validate_configuration", arguments: { configuration: proposal } }));
+    const validated = data(
+      await admin.callTool({
+        name: "validate_configuration",
+        arguments: { configuration: proposal },
+      }),
+    );
     assert.deepEqual(validated.configuration, proposal);
     assert.equal(validated.reviewDigest, digest(proposal));
-    data(await admin.callTool({ name: "update_configuration", arguments: { configuration: proposal, expectedRevision: 0, reviewDigest: validated.reviewDigest, requestId: "optional-setup" } }));
-    const read = data(await reader.callTool({ name: "get_agents", arguments: { expectedRevision: 1 } }));
+    data(
+      await admin.callTool({
+        name: "update_configuration",
+        arguments: {
+          configuration: proposal,
+          expectedDigest: null,
+          reviewDigest: validated.reviewDigest,
+        },
+      }),
+    );
+    const read = data(
+      await reader.callTool({
+        name: "get_agents",
+        arguments: { expectedDigest: digest(proposal) },
+      }),
+    );
     assert.deepEqual(read.data.agents, agents);
     assert.equal(read.active, false);
     assert.equal(read.executionEnabled, false);
-    assert.deepEqual(data(await admin.callTool({ name: "get_configuration", arguments: {} })).configuration, proposal);
-  } finally { await admin.close(); await reader.close(); await f.r.close(); }
+    assert.deepEqual(
+      data(await admin.callTool({ name: "get_configuration", arguments: {} }))
+        .configuration,
+      proposal,
+    );
+  } finally {
+    await admin.close();
+    await reader.close();
+    await f.r.close();
+  }
 });
+
+test("SDK returns attempted event ID without saved payload after lost insert response", async () => {
+  const f = await fixture(),
+    admin = await f.client("admin@example.test"),
+    writer = await f.client("writer@example.test");
+  try {
+    f.storage.setup();
+    f.storage.database.insert = async (row) => {
+      f.storage.database.rows.push(row);
+      throw Error("response lost");
+    };
+    const response = await writer.callTool({
+      name: "append_coordination_event",
+      arguments: {
+        expectedDigest: digest(example),
+        event: {
+          action: "execution",
+          scope: { type: "issue", id: issue },
+          issueId: issue,
+          reason: "Synthetic",
+          result: "Synthetic",
+          outcome: "uncertain",
+          observedAt: "2026-01-01T00:00:00Z",
+          evidenceRefs: [],
+        },
+      },
+    });
+    assert.equal(response.isError, true);
+    const result = response.structuredContent as Record<string, unknown>;
+    assert.equal(result.error, "EVENT_WRITE_UNCERTAIN");
+    assert.equal(typeof result.attemptedEventId, "string");
+    assert.equal("event" in result, false);
+    const found = data(
+      await writer.callTool({
+        name: "list_coordination_events",
+        arguments: { eventId: result.attemptedEventId },
+      }),
+    );
+    assert.equal(found.events.length, 1);
+  } finally {
+    await admin.close();
+    await writer.close();
+    await f.r.close();
+  }
+});
+
+test(
+  "stalled ClickHouse response times out once and SDK reports only uncertain attempted ID",
+  { timeout: 10000 },
+  async () => {
+    let attempts = 0;
+    let sentEventId = "";
+    let closed = false;
+    const stalled = createServer(async (req, res) => {
+      attempts++;
+      assert.equal(
+        new URL(req.url!, "http://localhost").searchParams.get("query"),
+        "INSERT INTO coordination_events FORMAT JSONEachRow",
+      );
+      let body = "";
+      for await (const chunk of req) body += chunk;
+      sentEventId = JSON.parse(body).event_id;
+      res.on("close", () => {
+        closed = true;
+      });
+      // A successful status with an unfinished body must never acknowledge storage.
+      res.writeHead(200);
+      res.flushHeaders();
+    });
+    await new Promise<void>((resolve) =>
+      stalled.listen(0, "127.0.0.1", resolve),
+    );
+    const address = stalled.address();
+    assert.ok(address && typeof address !== "string");
+    const timeoutMs = 300;
+    const f = await fixture(
+      new ClickHouse({
+        url: `http://127.0.0.1:${address.port}`,
+        database: "ceo",
+        username: "synthetic",
+        password: "synthetic",
+        timeoutMs,
+      }),
+    );
+    const writer = await f.client("writer@example.test");
+    try {
+      f.storage.setup();
+      const started = performance.now();
+      const response = await writer.callTool({
+        name: "append_coordination_event",
+        arguments: {
+          expectedDigest: digest(example),
+          event: {
+            action: "execution",
+            scope: { type: "issue", id: issue },
+            issueId: issue,
+            reason: "Synthetic timeout",
+            result: "Response remains open",
+            outcome: "uncertain",
+            observedAt: "2026-01-01T00:00:00Z",
+            evidenceRefs: [],
+          },
+        },
+      });
+      assert.ok(
+        performance.now() - started < 5000,
+        "write must terminate on the injected timeout",
+      );
+      assert.equal(response.isError, true);
+      assert.match(sentEventId, /^[0-9a-f-]{36}$/);
+      assert.deepEqual(response.structuredContent, {
+        error: "EVENT_WRITE_UNCERTAIN",
+        attemptedEventId: sentEventId,
+      });
+      assert.deepEqual(response.content, [
+        { type: "text", text: JSON.stringify(response.structuredContent) },
+      ]);
+      assert.equal("event" in response.structuredContent!, false);
+      // Give any unintended immediate retry another complete timeout interval.
+      await new Promise((resolve) => setTimeout(resolve, timeoutMs + 50));
+      assert.equal(attempts, 1);
+      assert.equal(closed, true, "timeout must abort the stalled response");
+    } finally {
+      await writer.close();
+      await f.r.close();
+      stalled.closeAllConnections();
+      await new Promise<void>((resolve) => stalled.close(() => resolve()));
+    }
+  },
+);

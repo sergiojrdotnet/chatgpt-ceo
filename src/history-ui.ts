@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
-export const historyUri = "ui://ceo/coordination-history/v1.html";
+export const historyUri = "ui://ceo/coordination-history/v2.html";
 export const historyMime = "text/html;profile=mcp-app";
 const script = readFileSync(
   new URL("../ui/history.js", import.meta.url),

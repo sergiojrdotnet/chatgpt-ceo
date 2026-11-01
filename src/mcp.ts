@@ -15,19 +15,18 @@ import {
   configuration,
   digest,
   DomainError,
-  identifier,
   appendEventSchema,
   listEventsSchema,
 } from "./model.ts";
 import type { Principal } from "./model.ts";
-import type { Store } from "./store.ts";
+import { EventWriteUncertain, type Store } from "./store.ts";
 const read = {
   readOnlyHint: true,
   destructiveHint: false,
   idempotentHint: true,
   openWorldHint: false,
 };
-const write = { ...read, readOnlyHint: false };
+const write = { ...read, readOnlyHint: false, idempotentHint: false };
 export function mcp(store: Store) {
   return createMcpHandler(
     ({ authInfo }) => {
@@ -38,10 +37,10 @@ export function mcp(store: Store) {
         expiresAt: (authInfo.expiresAt ?? 0) * 1000,
       };
       const server = new McpServer(
-        { name: "ceo", version: "0.1.0" },
+        { name: "ceo", version: "0.2.0" },
         {
           instructions:
-            "Read operation context then needed subject tools at the same revision. Configuration is not operational authority. Missing, partial, stale or conflicting reads block dependent decisions. Admin writes require review; event acknowledgement is not dispatch or exactly-once execution.",
+            "Read operation context then needed subject tools at the same current digest. Configuration is not operational authority. Missing, partial, stale or conflicting reads block dependent decisions. Admin writes require review; event acknowledgement is not dispatch or exactly-once execution.",
         },
       );
       function result(value: object) {
@@ -50,14 +49,20 @@ export function mcp(store: Store) {
           structuredContent: value as Record<string, unknown>,
         };
       }
-      function run(role: "read" | "admin" | "event", fn: () => object) {
+      async function run(
+        role: "read" | "admin" | "event",
+        fn: () => object | Promise<object>,
+      ) {
         try {
           authorize(p, role);
-          return result(fn());
+          return result(await fn());
         } catch (e) {
           return {
             ...result({
               error: e instanceof DomainError ? e.message : "UNAVAILABLE",
+              ...(e instanceof EventWriteUncertain
+                ? { attemptedEventId: e.attemptedEventId }
+                : {}),
             }),
             isError: true,
           };
@@ -67,15 +72,18 @@ export function mcp(store: Store) {
         "get_operation_context",
         {
           description:
-            "Read company context, bindings, execution flags and common configuration revision.",
+            "Read company context, bindings, execution flags and current configuration digest.",
           inputSchema: z
             .object({
-              expectedRevision: z.number().int().positive().optional(),
+              expectedDigest: z
+                .string()
+                .regex(/^[a-f0-9]{64}$/)
+                .optional(),
             })
             .strict(),
           annotations: read,
         },
-        (a) => run("read", () => store.read("context", a.expectedRevision)),
+        (a) => run("read", () => store.read("context", a.expectedDigest)),
       );
       for (const [name, subject, description] of [
         [
@@ -94,11 +102,11 @@ export function mcp(store: Store) {
           {
             description,
             inputSchema: z
-              .object({ expectedRevision: z.number().int().positive() })
+              .object({ expectedDigest: z.string().regex(/^[a-f0-9]{64}$/) })
               .strict(),
             annotations: read,
           },
-          (a) => run("read", () => store.read(subject, a.expectedRevision)),
+          (a) => run("read", () => store.read(subject, a.expectedDigest)),
         );
       server.registerTool(
         "get_configuration",
@@ -130,33 +138,29 @@ export function mcp(store: Store) {
         "update_configuration",
         {
           description:
-            "Admin-only atomic complete replacement after reviewing this exact proposal. Retry identical requestId only; conflicting revision requires reread and new review.",
+            "Admin-only atomic complete replacement after reviewing this exact proposal. No replay guarantee; conflicting current digest requires reread and new review.",
           inputSchema: z
             .object({
               configuration: z.record(z.string(), z.unknown()),
-              expectedRevision: z.number().int().nonnegative(),
+              expectedDigest: z
+                .string()
+                .regex(/^[a-f0-9]{64}$/)
+                .nullable(),
               reviewDigest: z.string().regex(/^[a-f0-9]{64}$/),
-              requestId: identifier,
             })
             .strict(),
           annotations: write,
         },
         (a) =>
           run("admin", () =>
-            store.update(
-              p.id,
-              a.requestId,
-              a.expectedRevision,
-              a.reviewDigest,
-              a.configuration,
-            ),
+            store.update(a.expectedDigest, a.reviewDigest, a.configuration),
           ),
       );
       server.registerTool(
         "list_coordination_events",
         {
           description:
-            "Read immutable coordination history with bounded snapshot pagination. Linear owns current task state; absence never proves an external action failed.",
+            "Read immutable coordination history with bounded keyset pagination; not a transactional snapshot. Linear owns current task state; absence never proves an external action failed.",
           inputSchema: listEventsSchema,
           annotations: read,
         },
@@ -210,8 +214,8 @@ export function mcp(store: Store) {
           annotations: read,
           _meta: { ui: { resourceUri: historyUri } },
         },
-        (a) => {
-          const checked = run("read", () => ({}));
+        async (a) => {
+          const checked = await run("read", () => ({}));
           if ("isError" in checked) return checked;
           return {
             content: [
@@ -228,7 +232,7 @@ export function mcp(store: Store) {
         "append_coordination_event",
         {
           description:
-            "Event-writer-only immutable factual decision/action/result. Exact request retries return the original event; no dispatch or exactly-once external effects. Corrections append linked events.",
+            "Event-writer-only immutable factual decision/action/result. One direct insert attempt; no replay, automatic retry or exactly-once guarantee. An uncertain write returns attemptedEventId. Corrections append linked events.",
           inputSchema: appendEventSchema,
           annotations: write,
         },

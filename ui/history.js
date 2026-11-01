@@ -64,16 +64,24 @@
       const article = document.createElement("article");
       const heading = document.createElement("header");
       heading.append(
-        text("h2", `${event.action} · ${event.scope?.id}`),
+        text(
+          "h2",
+          `${event.action} · ${event.scope?.type === "issue" ? event.issueIdentifier || event.scope.id : event.scope?.id}`,
+        ),
         text("span", event.outcome, "badge"),
       );
       const fields = document.createElement("dl");
       field(fields, "Recorded", event.recordedAt);
       field(fields, "Observed", event.observedAt);
-      field(fields, "Scope", event.scope?.type === "issue"
-        ? "issue"
-        : `${event.scope?.type} · ${event.scope?.id}`);
-      if (event.issueId) field(fields, "Issue", event.issueId);
+      field(
+        fields,
+        "Scope",
+        event.scope?.type === "issue"
+          ? "issue"
+          : `${event.scope?.type} · ${event.scope?.id}`,
+      );
+      if (event.issueId)
+        field(fields, "Issue", event.issueIdentifier || event.issueId);
       field(fields, "Reason", event.reason);
       field(fields, "Result", event.result);
       const details = document.createElement("details");
@@ -119,7 +127,7 @@
     events.replaceChildren(fragment);
     nextCursor = data.hasMore ? data.nextCursor : null;
     status.textContent = data.events.length
-      ? `${data.events.length} recorded events · snapshot page ${page}`
+      ? `${data.events.length} recorded events · history page ${page}`
       : "No events match these filters.";
     $("page").textContent = `Page ${page}`;
   }
@@ -130,7 +138,7 @@
     status.textContent = /UNAUTHORIZED|401|403|auth|expired/i.test(message)
       ? "Access unavailable or expired. Reconnect the CEO plugin in ChatGPT, then refresh."
       : /INVALID_CURSOR/.test(message)
-        ? "This snapshot is no longer available. Refresh to start again."
+        ? "This cursor is no longer available. Refresh to start again."
         : "History is unavailable. Refresh to try again.";
   }
   async function load(cursor, targetPage = 1) {

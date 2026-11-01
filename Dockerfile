@@ -10,9 +10,9 @@ COPY --chown=node:node ui ./ui
 COPY --chown=node:node references/policy.schema.json ./references/policy.schema.json
 RUN mkdir -p /data && chown node:node /data
 ARG REVISION=unknown
-LABEL org.opencontainers.image.title="chatgpt-ceo" org.opencontainers.image.version="0.1.0" org.opencontainers.image.revision=$REVISION
+LABEL org.opencontainers.image.title="chatgpt-ceo" org.opencontainers.image.version="0.2.0" org.opencontainers.image.revision=$REVISION
 USER node
-ENV NODE_ENV=production PORT=3000 DATABASE_PATH=/data/ceo.sqlite
+ENV NODE_ENV=production PORT=3000 CONFIG_PATH=/data/config.json
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 CMD node -e "fetch('http://127.0.0.1:3000/readyz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 CMD ["node","src/main.ts"]

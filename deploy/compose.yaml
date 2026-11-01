@@ -7,7 +7,8 @@ services:
     environment:
       NODE_ENV: production
       PORT: '3000'
-      DATABASE_PATH: /data/ceo.sqlite
+      CONFIG_PATH: /data/config.json
+    networks: [shared]
     ports:
       - 127.0.0.1:${CEO_PORT:?Select an unused loopback port}:3000
     volumes:
@@ -27,3 +28,8 @@ services:
       options: {max-size: 10m, max-file: '3'}
 volumes:
   data:
+
+networks:
+  shared:
+    external: true
+    name: ${CEO_NETWORK:-aluno-expert-net}
