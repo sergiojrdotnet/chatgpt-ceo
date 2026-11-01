@@ -17,8 +17,9 @@ Do not install, activate, provision identities or change security settings as se
    using the supplied
    [schema](../../references/policy.schema.json). No invented IDs, environment
    objects, model selections or business defaults. Each agent has a unique ID,
-   selection description, startup instructions, model/effort and optional exact
-   environment string. Begin inactive and execution-disabled unless the user has
+   selection description, model/effort, optional extra startup instructions and optional exact
+   environment string. Omit instructions when the user approves none; do not invent
+   placeholders or block setup on their absence. Begin inactive and execution-disabled unless the user has
    explicitly authorized activation; setup alone grants no business authority.
 3. Call `validate_configuration` with the complete proposed configuration. Show the
    concrete changed values and impact on existing work; resolve conflicts and

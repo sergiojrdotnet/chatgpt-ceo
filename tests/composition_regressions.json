@@ -145,5 +145,19 @@
       "Follow the applicable configured review/CI/merge policy and resolve conflicts; do not invent global provider or squash requirements.",
       "Required exact-version review/CI still gate publication; configurability does not waive those requirements."
     ]
+  },
+  {
+    "name": "optional-startup-instructions",
+    "skills": [
+      "setup",
+      "delegate"
+    ],
+    "steps": [
+      "The user approves five complete agent templates without extra startup instructions. Configure and prepare an issue-first handoff using a matching template."
+    ],
+    "expected": [
+      "Omit instructions from the configuration and extra handoff context; do not invent placeholders or block on absence.",
+      "Still include the issue ID and applicable process skill, and require issue/comment reading; preserve model, effort, environment and authority boundaries."
+    ]
   }
 ]

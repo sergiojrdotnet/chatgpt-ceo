@@ -23,7 +23,7 @@ grant operational authority or guarantee exactly-once external effects.
 
 Each process can be invoked independently. Code delegation invokes preparation;
 administration and publication use their applicable skills. Agent entries have
-unique IDs, selection descriptions, startup instructions, model/effort and optional
+unique IDs, selection descriptions, optional extra startup instructions, model/effort and optional
 environment strings. Select the complete matching template, verify current access
 and capabilities, and preserve issue-first handoffs. Technical publication guidance
 belongs to the configured agent/project; a repository release skill applies when
