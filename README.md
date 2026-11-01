@@ -1,33 +1,12 @@
 # CEO
 
-A single-company configuration MCP server and canonical coordination skills.
-ChatGPT manages the installed CEO plugin, its connection and presentation. This
-repository owns the server and skill source; skill updates are applied to that same
-ChatGPT plugin while preserving its registered MCP connection.
+A single-company configuration and immutable coordination-history MCP server.
+ChatGPT manages the installed CEO plugin, its connection and presentation. Skills
+and their procedural references are maintained directly in that plugin, separately
+from this server repository. Server changes do not publish or overwrite them.
 Linear owns objectives, acceptance, decisions and delivery state. The server stores
 configuration and immutable coordination events; it does not schedule, dispatch,
 grant operational authority or guarantee exactly-once external effects.
-
-| Skill | Outcome |
-| --- | --- |
-| [plan](skills/plan/SKILL.md) | Prior-period review and top-down direction |
-| [select-work](skills/select-work/SKILL.md) | Ready work within real capacity |
-| [delegate](skills/delegate/SKILL.md) | Issue-first assignment with a whole agent template |
-| [reconcile-execution](skills/reconcile-execution/SKILL.md) | Verified outcomes and accountable next action |
-| [operate-administration](skills/operate-administration/SKILL.md) | Bounded records with saved-state evidence |
-| [coordinate-incidents](skills/coordinate-incidents/SKILL.md) | Investigation and recovery ownership |
-| [prepare-code-change](skills/prepare-code-change/SKILL.md) | Issue and repository assessment before implementation |
-| [conduct-release](skills/conduct-release/SKILL.md) | Authorized publication and observation evidence |
-| [monitor-system](skills/monitor-system/SKILL.md) | Fresh bounded operational evidence |
-| [setup](skills/setup/SKILL.md) | Reviewed initial configuration and later changes |
-
-Each process can be invoked independently. Code delegation invokes preparation;
-administration and publication use their applicable skills. Agent entries have
-unique IDs, selection descriptions, optional extra startup instructions, model/effort and optional
-environment strings. Select the complete matching template, verify current access
-and capabilities, and preserve issue-first handoffs. Technical publication guidance
-belongs to the configured agent/project; a repository release skill applies when
-that guidance requires it. Reading configuration grants no business permission.
 
 | MCP tool | Input | Access |
 | --- | --- | --- |
@@ -41,9 +20,9 @@ that guidance requires it. Reading configuration grants no business permission.
 | `show_coordination_history` | Optional issue/scope filters and order | Read-only embedded ChatGPT view |
 | `append_coordination_event` | `event`, `expectedRevision`, `requestId` | Separate event write |
 
-Follow the [configuration contract](references/configuration.md) for consistent
-subject reads and fail-closed behavior. The [event contract](references/coordination-events.md)
-defines immutable outcomes, actual session attribution, corrections and pagination. Configuration follows
+Follow the [configuration contract](docs/configuration-api.md) for consistent
+subject reads and fail-closed behavior. The [event contract](docs/coordination-events-api.md)
+defines immutable outcomes, producer attribution, corrections and pagination. Configuration follows
 a closed [schema](references/policy.schema.json); revisions are server-owned.
 The [examples](examples/inactive-a.json) are synthetic, inactive and execution-disabled.
 No company IDs, endpoints, credentials or business values belong in public source.
@@ -52,24 +31,22 @@ No company IDs, endpoints, credentials or business values belong in public sourc
 
 ```sh
 npm ci
-python -m pip install -r requirements-dev.txt
 npx playwright install --with-deps chromium
 npm run check
 git diff --check
 ```
 
 Tests cover authenticated official-SDK requests, separate authorities, transactions,
-concurrent writers, restart, backup restore, incomplete/conflicting reads and private
-skill frontmatter, contained references and schema contracts. Scenario fixtures retain process-level review cases; they are
-not a claim of model-behavior evaluation. Local synthetic tests do not establish
+concurrent writers, restart, backup restore, incomplete/conflicting reads, schema
+contracts and the bounded history UI. Local synthetic tests do not establish
 installed-host discovery, actual private access, production deployment or activation.
 
 [Manual server deployment](docs/deployment.md) covers Docker, SQLite recovery and
 Access/Tunnel requirements. There is no automatic production deployment. The user
 connects and authenticates the MCP in ChatGPT; the installed CEO plugin contains
-both its tools and the skills maintained here. Its setup skill configures policy
-through the authenticated MCP. Keep account-specific plugin metadata outside this
-repository and verify skill and tool behavior together after an update.
+the authenticated tools and its separately maintained skills. Keep account-specific
+plugin metadata outside this repository. Server deployment and plugin editing are
+independent workflows; verify API compatibility when either changes.
 
 ## Embedded history
 
@@ -102,4 +79,4 @@ produce light, dark/mobile and empty-state screenshots under `/tmp/ceo-ui-eviden
 They are not actual ChatGPT embedding evidence. After reviewed deployment and tool
 refresh, acceptance still requires the existing installed CEO plugin to render the
 resource in ChatGPT, authenticate page requests, show empty/history/filter/error
-states and preserve manual-only navigation. Core ALU-68 acceptance remains a dependency.
+states and preserve manual-only navigation.

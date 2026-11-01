@@ -1,10 +1,7 @@
-# Immutable coordination events
+# Coordination event API
 
-Linear owns current objectives, acceptance and task state. History records meaningful
-coordination decisions/actions and their observed results, not a second board,
-transcripts, hidden reasoning or every tool query. Record a short objective reason,
-an honest result and audience-safe evidence references. Never copy secrets, raw
-financial records, complete issue bodies or private agent instructions.
+Immutable records describe actions and observed results; storage acknowledgement
+does not establish external effects or replace the owning task system.
 
 ## Typed API
 
@@ -54,30 +51,9 @@ requests `desc` (newest recorded first). Order is bound to the cursor like filte
 `nextCursor` until null, preserving filters; pages pin a snapshot high-water mark,
 so concurrent new events appear only in a fresh traversal. Cursors are opaque,
 store-bound, filter-bound and invalid after a clean reset. Do not infer absence from
-one page. This bounded listing is also the future dashboard's read API.
+one page. The dashboard uses this same bounded read API.
 
-## Meaningful lifecycle ownership
-
-The [state contract](state-evidence.md) names the status writer. The responsible
-executor appends `execution` for actual start, material review-ready and gate
-changes, and `validation` for observed acceptance or bounded verification results.
-A bounded snapshot is labeled as sampled evidence, never continuous observation.
-Do not create events for every query, unchanged CI poll or repeated status read.
-Use the existing action/scope enums; a status change is not a new event category.
-
-For a release, the assigned release executor primarily appends `publication` per
-issue/destination. The coordinator inspects existing events/results first and uses
-a sourced fallback only when the executor cannot append, under its own producer
-identity and with executor evidence. Resolve an uncertain append before fallback.
-The coordinator separately appends `handoff` after an observed resume result,
-preserving actual IDs, correlation and honest uncertainty.
-
-Initiatives are not an event scope. Reference initiative planning evidence from a
-genuinely owning project or coordination issue. If no such scope exists, record
-the decision and unsupported event scope in Linear rather than fabricating IDs or
-mislabeling scope. No new scope/schema or artificial issue is required.
-
-## Recovery and attribution
+## Transactions and retries
 
 The same authenticated producer/request ID and normalized input return the original
 event, including after restart or a later policy revision. Changed input rejects
@@ -86,18 +62,3 @@ Configuration writes and event writes share this request namespace. After a time
 retry only that exact request, or inspect history before choosing a new request ID.
 SQLite transactions make event/evidence/idempotency storage atomic, not an external
 dispatch/payment/publication. There is no distributed lock or exactly-once claim.
-
-For dispatch/resumption, first read all relevant issue history and authoritative
-runtime state. Retain one actual returned thread/turn pair per event. Multiple events
-can name the same thread, and per-issue events can share a release thread and
-correlation ID. Never replace previous implementation evidence or build a sessions
-array. Missing IDs remain absent, not guessed. Empty/inaccessible history does not
-prove rejection; resolve actual effects before another dispatch.
-
-Executors must prove their authenticated event-write capability in the real host.
-Mocked SDK tests and a coordinator's access do not establish executor access. If an
-executor cannot append, preserve its actual returned IDs/results in protected task
-evidence and report the gap. An authorized coordinator may record a sourced report
-under its own producer identity, with a reference to the executor's evidence; it
-must not impersonate the executor or claim firsthand validation. Missing resumption
-support is a real handoff blocker, not permission to fabricate completion.

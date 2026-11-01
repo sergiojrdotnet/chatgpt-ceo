@@ -10,7 +10,7 @@ volume and backups. It is not a credential vault. There is no automatic CI deplo
 ## Build and install
 
 1. Check out the reviewed commit; run `npm ci && npm run check` with Node 24.13+.
-   Python 3 with `requirements-dev.txt` is required by skill checks. Build
+   Build
    `docker build --build-arg REVISION="$(git rev-parse HEAD)" -t chatgpt-ceo:reviewed .`.
    In a managed cloud build, supply the platform CA using
    `--secret id=proxy_ca,src="$CODEX_PROXY_CERT"`; never disable TLS verification.
@@ -73,10 +73,11 @@ retention policy before long-term growth becomes material.
 ## ChatGPT connection
 
 The installed CEO plugin and its registered MCP connection are managed in ChatGPT.
-The user connects and authenticates manually. Apply canonical skills and their
-references to that same plugin without replacing its identity, connection or
-presentation. Invoke setup after authentication and verify both skills and tools
-in a fresh conversation. Local SDK tests do not establish installed-host behavior.
+The user connects and authenticates manually. Preserve its identity, connection and
+presentation. Skills and procedural references are maintained directly in the
+installed plugin; this repository neither packages nor publishes them. Verify tool
+discovery, authentication and the history UI in a fresh conversation after server
+changes. Local SDK tests do not establish installed-host behavior.
 
 See [OpenAI connection testing](https://developers.openai.com/plugins/deploy/connect-chatgpt)
 for the client connection and verification flow.
@@ -121,10 +122,8 @@ Do not reactivate operations, configure agents or create schedules as part of re
 Old backups require the matching old image for isolated inspection; never run it
 against the new live database or treat an old backup as an event migration.
 
-Before closing delivery, verify the same installed plugin identity loads these skills
-and readable skill-local references, advertises the current APIs without `get_release_policy` and authenticates on the
-real host. Test an actual coordinator and an actual implementation executor's event
-producer/authority, real returned thread/turn IDs, and release-to-original-session
-notification/resumption. Preserve precise unsupported/denied/uncertain results.
-Local SDK fixtures do not satisfy these gates. Update installed skills separately;
-this repository contains no plugin packaging manifest or installation archive.
+After server publication, verify the installed plugin advertises the current APIs
+and authenticates on the real host. Check read/admin/event authority separation and
+the embedded history resource. Local SDK fixtures do not satisfy real-host gates.
+Skill procedures and their operational acceptance belong to the separately managed
+plugin; a server deployment does not update them.
