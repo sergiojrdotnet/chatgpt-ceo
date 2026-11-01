@@ -84,3 +84,18 @@ class Skills(unittest.TestCase):
             self.assertTrue(case['steps'])
             self.assertGreaterEqual(len(case['expected']), 2)
             self.assertTrue(set(case['skills']).issubset(SKILLS))
+
+    def test_needs_input_is_a_verified_label_not_a_status(self):
+        state = (ROOT / 'references/state-evidence.md').read_text()
+        self.assertIn('Needs Input is a label, not a workflow status', state)
+        self.assertIn('Concrete user action required (label only)', state)
+        self.assertIn('Remove the label only after that need is resolved', state)
+        self.assertNotIn('→ Needs Input', state)
+        for name in ('select-work', 'reconcile-execution'):
+            content = (ROOT / f'skills/{name}/SKILL.md').read_text()
+            self.assertIn('verified existing Needs Input', content)
+            self.assertIn('label', content)
+            self.assertIn('readback', content)
+        cases = (ROOT / 'tests/composition_regressions.json').read_text()
+        self.assertNotIn('move to Needs Input', cases)
+        self.assertIn('never invent a Needs Input status', cases)

@@ -49,8 +49,11 @@ Use the same revision for all configuration reads; follow the linked contract.
    preserve actual session attribution and evidence; a sourced relay uses the
    coordinator's own producer identity, never impersonation. Record concise findings,
    precise gaps, owner and next check in the issue.
-   Distinguish failed, denied, pending and uncertain actions; Needs Input only when
-   the user must actually act. Continue independent authorized work.
+   Distinguish failed, denied, pending and uncertain actions. The current owner
+   applies the verified existing Needs Input label only when the user must actually
+   act and removes it only after resolution, verifying readback. Preserve the
+   truthful phase; never transition to a Needs Input status. Continue independent
+   authorized work.
 
 Handoff: [conduct-release](../conduct-release/SKILL.md) for real publication;
 [coordinate-incidents](../coordinate-incidents/SKILL.md) for service impact;

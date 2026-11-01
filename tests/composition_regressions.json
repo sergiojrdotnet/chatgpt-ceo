@@ -189,8 +189,8 @@
       "An issue is Awaiting Release but provider availability blocks publication; no user action can resolve it. A second issue requires the user to choose an authorized destination."
     ],
     "expected": [
-      "Preserve Awaiting Release, owner and next condition for provider blocker; do not regress to Todo or move to Needs Input.",
-      "Needs Input only for the concrete user destination decision, with impact, attempts and recommendation."
+      "Preserve Awaiting Release, owner and next condition for provider blocker; do not regress to Todo or apply the Needs Input label.",
+      "Apply the verified existing Needs Input label only for the concrete user destination decision, with impact, attempts and recommendation; preserve the workflow phase. The current owner removes the label only after resolution and verifies readback; never invent a Needs Input status."
     ]
   },
   {

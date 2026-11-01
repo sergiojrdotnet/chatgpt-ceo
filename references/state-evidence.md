@@ -19,9 +19,15 @@ This exception grants no mutation, recovery, dispatch or publication authority.
 | Merge requiring publication → Awaiting Release | Implementer | Exact merge confirmed, publication still pending; hand off to the release coordinator. Merge without a publication requirement proceeds to actual validation. |
 | Actual acceptance checking → In Validation | Responsible validation executor | Original implementer after confirmed publication, or administrative/other executor verifying the intended result. No fictional publication for work that needs none. |
 | Verified issue acceptance → Done | Responsible executor | Every acceptance criterion and intended outcome evidenced, applicable observation complete, no unresolved critical regression. Coordinator reconciles missing/conflicting bookkeeping from sourced evidence. |
-| Concrete user action required → Needs Input | Current owner; coordinator reconciles | Name the exact user action, impact, attempts and recommendation. It is not a generic waiting state. |
-| Nonhuman blocker / uncertain effect | Current owner; coordinator reconciles | Preserve the last truthful phase, named owner and next condition/action. Record dependencies and uncertainty; do not regress to Todo or use Needs Input without a user action. |
+| Concrete user action required (label only) | Current owner; coordinator reconciles | Apply the verified existing Needs Input label, preserving the last truthful workflow phase. Record the exact user action, impact, attempts and recommendation. Remove the label only after that need is resolved. |
+| Nonhuman blocker / uncertain effect | Current owner; coordinator reconciles | Preserve the last truthful phase, named owner and next condition/action. Record dependencies and uncertainty; do not regress to Todo or apply the Needs Input label without a user action. |
 | Canceled / Duplicate | Current owner or coordinator within authority | Recorded reason / canonical issue link; neither is delivered work. |
+
+Needs Input is a label, not a workflow status. Verify the existing label in the
+selected workspace before applying or removing it; never invent a label ID or
+transition to a Needs Input status. The current owner verifies label readback and
+removes it only when the recorded user need is resolved. If label lookup or mutation
+is unavailable, report the gap in Linear while preserving the truthful phase.
 
 The named writer reads current state before each needed transition and verifies
 readback. The coordinator checks ownership, evidence and missed transitions rather

@@ -24,8 +24,10 @@ Use the same revision for all configuration reads; follow the linked contract.
    and recheck. Apply private preferred/maximum capacity and a justified urgent
    incident exception; this is not a weekly throughput quota or an atomic lock.
 4. Distinguish actual dependency, required user input and other concrete blockers.
-   Use native dependencies for the first; Needs Input only for an actual user
-   action, with impact, attempts, recommendation and exact need. Continue eligible
+   Use native dependencies for the first; apply the verified existing Needs Input
+   label only for an actual user action, with impact, attempts, recommendation and
+   exact need. Preserve the truthful phase; the current owner removes the label
+   only after the need is resolved, with readback. Needs Input is not a status. Continue eligible
    independent work, never dependents of blocked work.
 5. Compare time and validation conditions. Low-activity periods favor independently
    verifiable tasks when real events are predictably unavailable. Actual traffic
