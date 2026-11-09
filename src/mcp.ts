@@ -94,7 +94,7 @@ export function mcp(store: Store) {
         [
           "get_selection_policy",
           "selection",
-          "Read capacity and work-selection constraints.",
+          "Read ordinary-work capacity and incident admission policy. Uncapped incident admission does not grant authority or executor resources; legacy numeric policy requires explicit migration.",
         ],
       ] as const)
         server.registerTool(

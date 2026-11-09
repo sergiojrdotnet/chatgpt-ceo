@@ -78,6 +78,113 @@ function data(result: Awaited<ReturnType<Client["callTool"]>>) {
   assert.notEqual(result.isError, true, JSON.stringify(result));
   return result.structuredContent as Record<string, any>;
 }
+test("SDK migrates legacy capacity explicitly with admin review and consistent subject readback", async () => {
+  const f = await fixture();
+  const admin = await f.client("admin@example.test"),
+    reader = await f.client("reader@example.test");
+  try {
+    f.storage.setup();
+    const legacy = data(
+      await admin.callTool({ name: "get_configuration", arguments: {} }),
+    );
+    assert.deepEqual(legacy.configuration, example);
+    const proposal = {
+      ...example,
+      capacity: {
+        preferredMin: 3,
+        preferredMax: 5,
+        activeMax: 5,
+        incidentAdmission: "uncapped",
+      },
+    };
+    assert.equal(
+      (
+        await reader.callTool({
+          name: "validate_configuration",
+          arguments: { configuration: proposal },
+        })
+      ).isError,
+      true,
+    );
+    const reviewed = data(
+      await admin.callTool({
+        name: "validate_configuration",
+        arguments: { configuration: proposal },
+      }),
+    );
+    assert.deepEqual(reviewed.configuration, proposal);
+    assert.equal(reviewed.reviewDigest, digest(proposal));
+    assert.equal(
+      data(await admin.callTool({ name: "get_configuration", arguments: {} }))
+        .digest,
+      legacy.digest,
+    );
+    const args = {
+      configuration: proposal,
+      expectedDigest: legacy.digest,
+      reviewDigest: reviewed.reviewDigest,
+    };
+    assert.equal(
+      (await reader.callTool({ name: "update_configuration", arguments: args }))
+        .isError,
+      true,
+    );
+    assert.equal(
+      data(
+        await admin.callTool({ name: "update_configuration", arguments: args }),
+      ).digest,
+      digest(proposal),
+    );
+    const current = data(
+      await admin.callTool({ name: "get_configuration", arguments: {} }),
+    );
+    assert.deepEqual(current.configuration, proposal);
+    const context = data(
+      await reader.callTool({ name: "get_operation_context", arguments: {} }),
+    );
+    const selection = data(
+      await reader.callTool({
+        name: "get_selection_policy",
+        arguments: { expectedDigest: context.digest },
+      }),
+    );
+    assert.equal(context.digest, current.digest);
+    assert.equal(selection.digest, context.digest);
+    assert.deepEqual(selection.data.capacity, proposal.capacity);
+    assert.equal(selection.active, example.active);
+    assert.equal(selection.fixtureOnly, example.fixtureOnly);
+    assert.equal(selection.executionEnabled, example.executionEnabled);
+    const stale = await reader.callTool({
+      name: "get_selection_policy",
+      arguments: { expectedDigest: legacy.digest },
+    });
+    assert.equal(stale.isError, true);
+    assert.deepEqual(stale.structuredContent, {
+      error: "CONFIGURATION_CONFLICT",
+    });
+    const ambiguous = {
+      ...proposal,
+      capacity: { ...proposal.capacity, urgentIncidentMax: 6 },
+    };
+    assert.equal(
+      (
+        await admin.callTool({
+          name: "validate_configuration",
+          arguments: { configuration: ambiguous },
+        })
+      ).isError,
+      true,
+    );
+    assert.equal(
+      data(await admin.callTool({ name: "get_configuration", arguments: {} }))
+        .digest,
+      current.digest,
+    );
+  } finally {
+    await Promise.all([admin.close(), reader.close()]);
+    await f.r.close();
+  }
+});
 test("fresh SDK consumers setup, discover nine tools, read subjects consistently and enforce distinct write roles", async () => {
   const f = await fixture();
   const admin = await f.client("admin@example.test"),

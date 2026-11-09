@@ -164,6 +164,45 @@ try {
     check,
     JSON.stringify(c),
   ]);
+  const migrated = structuredClone(c);
+  delete migrated.capacity.urgentIncidentMax;
+  migrated.capacity.incidentAdmission = "uncapped";
+  const migrate = `
+    import assert from 'node:assert/strict';
+    import {ConfigStore} from './src/config-store.ts';
+    import {digest} from './src/model.ts';
+    const s=new ConfigStore(process.env.CONFIG_PATH);
+    const c=JSON.parse(process.argv[1]);
+    const previous=s.adminRead().digest;
+    s.update(previous,digest(c),c);
+    assert.deepEqual(s.adminRead().configuration,c);
+    const context=s.read('context');
+    assert.deepEqual(s.read('selection',context.digest).data.capacity,c.capacity);
+    assert.throws(()=>s.read('selection',previous),/CONFIGURATION_CONFLICT/);
+  `;
+  compose([
+    "exec",
+    "-T",
+    "server",
+    "node",
+    "--input-type=module",
+    "-e",
+    migrate,
+    JSON.stringify(migrated),
+  ]);
+  compose(["restart", "server"]);
+  url = "http://" + compose(["port", "server", "3000"]);
+  await waitReady(url + "/readyz");
+  compose([
+    "exec",
+    "-T",
+    "server",
+    "node",
+    "--input-type=module",
+    "-e",
+    check,
+    JSON.stringify(migrated),
+  ]);
   const id = compose(["ps", "-q", "server"]);
   const host = JSON.parse(
     docker(["inspect", "--format", "{{json .HostConfig}}", id]),
@@ -172,7 +211,7 @@ try {
   assert.deepEqual(host.CapDrop, ["ALL"]);
   assert.equal(docker(["inspect", "--format", "{{.Config.User}}", id]), "node");
   console.log(
-    "PASS: isolated real ClickHouse, SELECT/INSERT account, 1205-event traversal, shipped Compose, persistent config restart, auth denial and nonroot/read-only runtime. No production evidence.",
+    "PASS: isolated real ClickHouse, SELECT/INSERT account, 1205-event traversal, shipped Compose, legacy and uncapped config persistence across restart, migration/digest conflict, auth denial and nonroot/read-only runtime. No production evidence.",
   );
 } catch (error) {
   try {

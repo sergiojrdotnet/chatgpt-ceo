@@ -50,7 +50,45 @@ No multi-process writer, external live editing or network-filesystem guarantee i
 provided. Keep a writable directory mount, not a bind mount of a single file.
 
 Validation retains the 256 KiB bound, closed fields, valid timezone/timestamp,
-unique agent IDs, ordered capacity limits, `urgentIncidentMax = activeMax + 1`,
+unique agent IDs, ordered ordinary capacity limits, an explicit incident policy
+(or the compatible legacy form described below),
 nonempty agents when active and execution-enabled, increasing administrative
 start/end times and rejection of recognized credential material. Store service
 credentials in private environment bindings, never this file or the repository.
+
+## Incident admission and legacy compatibility
+
+New configurations can express uncapped confirmed incident-response admission:
+
+```json
+"capacity": {
+  "preferredMin": 3,
+  "preferredMax": 5,
+  "activeMax": 5,
+  "incidentAdmission": "uncapped"
+}
+```
+
+The three positive safe integers still satisfy
+`preferredMin <= preferredMax <= activeMax`. Exactly one incident representation
+is required: `incidentAdmission: "uncapped"` or the deprecated positive safe integer
+`urgentIncidentMax`. Both together, neither, null, unknown strings and numeric
+sentinels for the new policy are invalid. The legacy form still validates only
+when `urgentIncidentMax === activeMax + 1`; it is retained for compatibility, not
+interpreted as uncapped.
+
+Existing valid schemaVersion 2 files, admin/subject output and canonical digests
+remain unchanged. Reads never rewrite or normalize legacy configuration. Switching
+policy is an explicit reviewed whole-configuration update: remove
+`urgentIncidentMax`, add `incidentAdmission: "uncapped"`, preserve other fields,
+validate, review the returned exact proposal/digest, update with the current digest
+and read back admin/context/selection results at the new digest. A stale old digest
+must conflict. A rollback also needs a reviewed replacement; an old server cannot
+read the new form. Restore a reviewed compatible legacy configuration before
+rolling the server back. Never edit a live file as a migration shortcut.
+
+The server supplies policy, not a scheduler. Updated consumers must apply the
+[incident-capacity contract](incident-capacity.md); server tests and merge do not
+prove installed-plugin behavior or publish the separate skill package. Coordinate
+consumer publication before activating the new policy and retain authenticated
+installed-consumer verification as release acceptance.

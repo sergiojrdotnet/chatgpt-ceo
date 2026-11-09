@@ -31,6 +31,14 @@ export type Agent = {
   effort: string;
   environment?: string;
 };
+export type Capacity = {
+  preferredMin: number;
+  preferredMax: number;
+  activeMax: number;
+} & (
+  | { incidentAdmission: "uncapped"; urgentIncidentMax?: never }
+  | { urgentIncidentMax: number; incidentAdmission?: never }
+);
 export type Configuration = {
   schemaVersion: 2;
   profileId: string;
@@ -45,12 +53,7 @@ export type Configuration = {
     github: { repositories: string[] };
     erpnext: { connectionRef: string };
   };
-  capacity: {
-    preferredMin: number;
-    preferredMax: number;
-    activeMax: number;
-    urgentIncidentMax: number;
-  };
+  capacity: Capacity;
   selection: {
     administrativeHours: { start: string; end: string };
     lowActivityPreference: boolean;
@@ -75,13 +78,21 @@ export function configuration(input: unknown): Configuration {
   )
     fail("INVALID_TIMESTAMP");
   const cap = c.capacity;
-  if (!Object.values(cap).every(Number.isSafeInteger)) fail("INVALID_CAPACITY");
   if (
-    !(
-      cap.preferredMin <= cap.preferredMax &&
-      cap.preferredMax <= cap.activeMax &&
-      cap.urgentIncidentMax === cap.activeMax + 1
+    ![cap.preferredMin, cap.preferredMax, cap.activeMax].every(
+      Number.isSafeInteger,
     )
+  )
+    fail("INVALID_CAPACITY");
+  if (
+    !(cap.preferredMin <= cap.preferredMax && cap.preferredMax <= cap.activeMax)
+  )
+    fail("INVALID_CAPACITY");
+  // Preserve the exact legacy form and digest until an explicit reviewed migration.
+  if (
+    cap.urgentIncidentMax !== undefined &&
+    (!Number.isSafeInteger(cap.urgentIncidentMax) ||
+      cap.urgentIncidentMax !== cap.activeMax + 1)
   )
     fail("INVALID_CAPACITY");
   if (new Set(c.agents.map((a) => a.id)).size !== c.agents.length)
