@@ -119,14 +119,37 @@
         "urgentIncidentMax": {
           "type": "integer",
           "minimum": 1,
-          "maximum": 9007199254740991
+          "maximum": 9007199254740991,
+          "description": "Deprecated legacy bounded exception; must equal activeMax + 1. Preserved without implicit migration. Mutually exclusive with incidentAdmission."
+        },
+        "incidentAdmission": {
+          "const": "uncapped",
+          "type": "string",
+          "description": "Confirmed incident response has no workload or incident-count admission ceiling. Does not grant authority, executor resources or concurrent mutation safety."
         }
       },
       "required": [
         "preferredMin",
         "preferredMax",
-        "activeMax",
-        "urgentIncidentMax"
+        "activeMax"
+      ],
+      "oneOf": [
+        {
+          "properties": {
+            "incidentAdmission": true
+          },
+          "required": [
+            "incidentAdmission"
+          ]
+        },
+        {
+          "properties": {
+            "urgentIncidentMax": true
+          },
+          "required": [
+            "urgentIncidentMax"
+          ]
+        }
       ],
       "additionalProperties": false
     },

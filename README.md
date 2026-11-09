@@ -24,6 +24,9 @@ direct writes, uncertainty, UUID identity and bounded keyset traversal. Repeated
 issue events are allowed. There is no replay guarantee, automatic retry or queue.
 The [closed schema](references/policy.schema.json) and [inactive examples](examples/inactive-a.json)
 contain no real credentials or company data.
+The [incident-capacity contract](docs/incident-capacity.md) separates ordinary-work
+limits from uncapped confirmed incident admission, including legacy migration and
+the required separately published consumer instructions.
 
 ## Development
 
